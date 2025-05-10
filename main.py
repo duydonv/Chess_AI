@@ -10,107 +10,75 @@ class Main:
 
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode( (WIDTH, HEIGHT))
+        self.screen = pygame.display.set_mode((WIDTH, HEIGHT))
         pygame.display.set_caption('Chess')
         self.game = Game()
+        self.game.screen = self.screen
+        self.clock = pygame.time.Clock()
 
     def mainloop(self):
-                
         screen = self.screen
         game = self.game
-        board = self.game.board
-        dragger = self.game.dragger
-        
-        while True:
-            game.check_promotion()
-            game.show_bg(screen)
-            game.show_last_move(screen)
-            if game.promotion_col:
-                game.show_choose_promotion(screen)
-            game.show_moves(screen)
-            game.show_pieces(screen)
+        board = game.board
+        dragger = game.dragger
 
-            if dragger.dragging:
-                dragger.update_blit(screen)
+        while True:
+            self.clock.tick(FPS)
+
+            if game.next_player == game.ai_color and game.ai_enabled:
+                game.make_ai_move()
 
             for event in pygame.event.get():
-                # lắng nghe sự kiện click chuột
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    dragger.update_mouse(event.pos)
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
 
-                    clicked_row = dragger.mouseY // SQSIZE
-                    clicked_col = dragger.mouseX // SQSIZE
-                    if game.promotion_col:
-                        if clicked_col == game.promotion_col and game.check_row_promotion(clicked_row):
-                            piece = board.squares[clicked_row][clicked_col].promotion_piece
-                            if game.promotion_color == "white":
-                                board.squares[0][clicked_col].piece = piece
-                            elif game.promotion_color == "black":
-                                board.squares[7][clicked_col].piece = piece
-
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            game.show_moves(screen)
-                            game.show_pieces(screen)
-                    elif board.squares[clicked_row][clicked_col].has_piece():
-                        # chinh
-                        game.reset_moves()
-                        piece = board.squares[clicked_row][clicked_col].piece
-                        if piece.color == game.next_player:
-                            board.calc_moves(piece, clicked_row, clicked_col, bool=True)
-                            dragger.save_initial(event.pos)
-                            dragger.drag_piece(piece)
-                            # chỉnh mouse cursor khi dragging 
-                            pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_HAND)
-
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            game.show_moves(screen)
-                            game.show_pieces(screen)
-
-                # lắng nghe sự kiện di chuyển chuột
                 elif event.type == pygame.MOUSEMOTION:
+                    motion_row = event.pos[1] // SQSIZE
+                    motion_col = event.pos[0] // SQSIZE
+
+                    game.set_hover(motion_row, motion_col)
+
                     if dragger.dragging:
                         dragger.update_mouse(event.pos)
-                        game.show_bg(screen)
-                        game.show_last_move(screen)
-                        game.show_moves(screen)
-                        game.show_pieces(screen)
-                        dragger.update_blit(screen)
 
-                # lắng nghe sự kiện nhả chuột
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if not dragger.dragging:
+                        dragger.update_mouse(event.pos)
+                        clicked_row = dragger.mouseY // SQSIZE
+                        clicked_col = dragger.mouseX // SQSIZE
+
+                        if board.squares[clicked_row][clicked_col].has_team_piece(game.next_player):
+                            piece = board.squares[clicked_row][clicked_col].piece
+                            dragger.save_initial(event.pos)
+                            dragger.drag_piece(piece)
+
                 elif event.type == pygame.MOUSEBUTTONUP:
                     if dragger.dragging:
                         dragger.update_mouse(event.pos)
                         released_row = dragger.mouseY // SQSIZE
                         released_col = dragger.mouseX // SQSIZE
 
+                        # Tạo nước đi
                         initial = Square(dragger.initial_row, dragger.initial_col)
                         final = Square(released_row, released_col)
                         move = Move(initial, final)
 
+                        # Kiểm tra nước đi hợp lệ
                         if board.valid_move(dragger.piece, move):
-                            captured = board.squares[released_row][released_col].has_piece()
+                            # Thực hiện nước đi
+                            game.move(dragger.piece, move)
 
-                            board.move(dragger.piece, move)
+                        dragger.undrag_piece()
 
-                            board.set_true_en_passant(dragger.piece)
-                            game.play_sound(captured)
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            game.show_pieces(screen)
+            # Hiển thị
+            game.show_bg(screen)
+            game.show_last_move(screen)
+            game.show_moves(screen)
+            game.show_pieces(screen)
 
-                            game.next_turn()
-
-                    dragger.undrag_piece()
-                        
-                    # chỉnh mouse cursor sau khi dragging 
-                    pygame.mouse.set_cursor(pygame.SYSTEM_CURSOR_ARROW)
-
-                # xử lí sự kiện thoát
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
+            if dragger.dragging:
+                dragger.update_blit(screen)
 
             pygame.display.update()
 

@@ -3,6 +3,8 @@ import pygame
 from const import *
 
 class Dragger:
+    # Cache cho texture
+    _texture_cache = {}
 
     def __init__(self):
         self.piece = None
@@ -13,17 +15,20 @@ class Dragger:
         self.initial_col = 0
 
     def update_blit(self, surface):
-        self.piece.set_texture(size = 70)
+        self.piece.set_texture(size=70)  # Tăng kích thước quân cờ khi kéo
         texture = self.piece.texture
-        img = pygame.image.load(texture)
+        
+        # Sử dụng cache cho texture
+        if texture not in self._texture_cache:
+            self._texture_cache[texture] = pygame.image.load(texture)
+        
+        img = self._texture_cache[texture]
         img_center = (self.mouseX, self.mouseY)
-        self.piece.texture_rect = img.get_rect(center = img_center)
-
+        self.piece.texture_rect = img.get_rect(center=img_center)
         surface.blit(img, self.piece.texture_rect)
 
-
     def update_mouse(self, pos):
-        self.mouseX, self.mouseY = pos #pos = (x, y)
+        self.mouseX, self.mouseY = pos
 
     def save_initial(self, pos):
         self.initial_row = pos[1] // SQSIZE

@@ -1,6 +1,9 @@
 import os
+import pygame
 
 class Piece:
+    # Cache cho texture
+    _texture_cache = {}
     
     def __init__(self, name, color, value, texture = None, texture_react = None):
         self.name = name
@@ -13,16 +16,24 @@ class Piece:
         self.set_texture()
         self.texture_react = texture_react
 
-    def set_texture(self, size = 64):
+    def set_texture(self, size = 70):
         self.texture = os.path.join(
             f'assets/images/imgs-{size}px/{self.color}_{self.name}.png'
         )
+        
+        # Cache texture
+        if self.texture not in self._texture_cache:
+            self._texture_cache[self.texture] = pygame.image.load(self.texture)
 
     def add_move(self, move):
         self.moves.append(move)
     
     def clear_moves(self):
         self.moves = []
+
+    @classmethod
+    def clear_texture_cache(cls):
+        cls._texture_cache.clear()
 
 # định nghĩa các quân tốt
 class Pawn(Piece):

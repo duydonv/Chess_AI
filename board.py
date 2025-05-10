@@ -10,55 +10,70 @@ from sound import Sound
 class Board:
 
     def __init__(self):
-        self.squares = [[0, 0, 0, 0, 0, 0, 0, 0] for col in range(COLS)]
+        # Sử dụng list lồng nhau để biểu diễn bàn cờ (tối ưu hơn numpy object array)
+        self.squares = [[Square(row, col) for col in range(8)] for row in range(8)]
         self.last_move = None
-        self._creat()
-        self._add_piece('white')
-        self._add_piece('black')
+        self._create()
+        self._move_cache = {}  # Cache cho các nước đi
+        self._valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
+        self._check_cache = {}  # Cache cho trạng thái chiếu
 
     def move(self, piece, move, testing=False):
         initial = move.initial
         final = move.final
-
         en_passant_empty = self.squares[final.row][final.col].isempty()
-
         # cập nhật vị trí quân cờ
         self.squares[initial.row][initial.col].piece = None
         self.squares[final.row][final.col].piece = piece
-        
+        # Bắt tốt qua đường
         if isinstance(piece, Pawn):
-            # bắt tốt qua đường
             diff = final.col - initial.col
             if diff != 0 and en_passant_empty:
-                # console board move update
                 self.squares[initial.row][initial.col + diff].piece = None
                 self.squares[final.row][final.col].piece = piece
-                if not testing:
-                    sound = Sound(
-                        os.path.join('assets/sounds/capture.wav'))
-                    sound.play()
-
-            # # phong cấp tốt
-            # else:
-            #     self.check_promotion(piece, final)
-
-        # nhập thành
+        # Nhập thành
         if isinstance(piece, King):
-            if self.castling(initial, final) and not testing:
-                diff = final.col - initial.col
-                rook = piece.left_rook if (diff < 0) else piece.right_rook
-                self.move(rook, rook.moves[-1])
+            if abs(final.col - initial.col) == 2 and not testing:
+                row = initial.row
+                if final.col > initial.col:
+                    # Nhập thành gần
+                    rook_from = self.squares[row][7].piece
+                    self.squares[row][7].piece = None
+                    self.squares[row][final.col-1].piece = rook_from
+                    rook_from.moved = True
+                else:
+                    # Nhập thành xa
+                    rook_from = self.squares[row][0].piece
+                    self.squares[row][0].piece = None
+                    self.squares[row][final.col+1].piece = rook_from
+                    rook_from.moved = True
         # đánh dấu đã di chuyển
         piece.moved = True
-
         # xóa các bước có thể đi ở vị trí cũ
         piece.clear_moves()
-
         # lưu vị trí cũ
         self.last_move = move
+        # Xóa cache
+        self._move_cache.clear()
+        self._valid_moves_cache.clear()
+        self._check_cache.clear()
 
     def valid_move(self, piece, move):
-        return move in piece.moves
+        # Kiểm tra cache
+        cache_key = (piece, move.initial.row, move.initial.col, move.final.row, move.final.col, self.get_board_state())
+        if cache_key in self._valid_moves_cache:
+            return self._valid_moves_cache[cache_key]
+
+        # Kiểm tra nước đi có hợp lệ không
+        valid = False
+        for possible_move in piece.moves:
+            if move == possible_move:
+                valid = True
+                break
+
+        # Lưu vào cache
+        self._valid_moves_cache[cache_key] = valid
+        return valid
     
     def check_promotion(self, piece, final):
         if final.row == 0 or final.row == 7:
@@ -113,281 +128,238 @@ class Board:
         
         return False
 
-    # thêm bool tạo sự khác biệt giữa khi gọi ở in_check để ko bị gọi đệ quy
-    def calc_moves(self, piece, row, col, bool=True):
+    def calc_moves(self, piece, row, col, bool=False):
+        piece.clear_moves()
+        
+        # Kiểm tra cache
+        cache_key = (piece, row, col, self.get_board_state())
+        if cache_key in self._move_cache:
+            piece.moves = self._move_cache[cache_key]
+            return piece.moves
 
-        def pawn_moves():
-            # đi thẳng = 2 nếu là first move 
-            steps = 1 if piece.moved else 2
+        # Tính toán các nước đi có thể
+        if piece.name == 'pawn':
+            self._calc_pawn_moves(piece, row, col)
+        elif piece.name == 'knight':
+            self._calc_knight_moves(piece, row, col)
+        elif piece.name == 'bishop':
+            self._calc_bishop_moves(piece, row, col)
+        elif piece.name == 'rook':
+            self._calc_rook_moves(piece, row, col)
+        elif piece.name == 'queen':
+            self._calc_queen_moves(piece, row, col)
+        elif piece.name == 'king':
+            self._calc_king_moves(piece, row, col)
 
-            start = row + piece.dir
-            end = row + (piece.dir * (1 + steps))
-            for move_row in range(start, end, piece.dir):
-                if Square.in_range(move_row):
-                    if self.squares[move_row][col].isempty():
-                        initial = Square(row, col)
-                        final = Square(move_row, col)
-                        move = Move(initial, final)
-                        if bool:
-                            if not self.in_check(piece, move):
-                                piece.add_move(move)
-                        else:
-                            piece.add_move(move)
-                    else: break
-                else: break
-            
-            # ăn chéo
-            possible_move_row = row + piece.dir
-            possible_move_cols = [col-1, col+1]
-            for possible_move_col in possible_move_cols:
-                if Square.in_range(possible_move_col):
-                    if self.squares[possible_move_row][possible_move_col].has_enemy_piece(piece.color):
-                        initial = Square(row, col)
-                        final_piece = self.squares[possible_move_row][possible_move_col].piece
-                        final = Square(possible_move_row, possible_move_col, final_piece)
-                        move = Move(initial, final)
-                        if bool:
-                            if not self.in_check(piece, move):
-                                piece.add_move(move)
-                        else:
-                            piece.add_move(move)
+        # Lưu vào cache
+        self._move_cache[cache_key] = piece.moves
+        return piece.moves
 
-            # bắt tốt qua đường
-            r = 3 if piece.color == 'white' else 4
-            fr = 2 if piece.color == 'white' else 5
-            if Square.in_range(col-1) and row == r:
-                if self.squares[row][col-1].has_enemy_piece(piece.color):
-                    p = self.squares[row][col-1].piece
-                    if isinstance(p, Pawn):
-                        if p.en_passant:
-                            initial = Square(row, col)
-                            final = Square(fr, col-1, p)
-                            move = Move(initial, final)
-                            if bool:
-                                if not self.in_check(piece, move):
-                                    piece.add_move(move)
-                            else:
-                                piece.add_move(move)
-            
-            if Square.in_range(col+1) and row == r:
-                if self.squares[row][col+1].has_enemy_piece(piece.color):
-                    p = self.squares[row][col+1].piece
-                    if isinstance(p, Pawn):
-                        if p.en_passant:
-                            initial = Square(row, col)
-                            final = Square(fr, col+1, p)
-                            move = Move(initial, final)
-                            if bool:
-                                if not self.in_check(piece, move):
-                                    piece.add_move(move)
-                            else:
-                                piece.add_move(move)
+    def _calc_pawn_moves(self, piece, row, col):
+        # Tối ưu hóa việc tính toán nước đi của tốt
+        if piece.color == 'white':
+            # Di chuyển lên
+            if row > 0 and not self.squares[row-1][col].has_piece():
+                piece.add_move(Move(Square(row, col), Square(row-1, col)))
+                # Di chuyển 2 ô ở nước đầu
+                if row == 6 and not self.squares[row-2][col].has_piece():
+                    piece.add_move(Move(Square(row, col), Square(row-2, col)))
+            # Ăn chéo
+            for col_offset in [-1, 1]:
+                if 0 <= col + col_offset < 8 and row > 0:
+                    if self.squares[row-1][col+col_offset].has_enemy_piece(piece.color):
+                        piece.add_move(Move(Square(row, col), Square(row-1, col+col_offset)))
+                    # Bắt tốt qua đường
+                    elif row == 3 and self.squares[row][col+col_offset].has_piece():
+                        p = self.squares[row][col+col_offset].piece
+                        if isinstance(p, Pawn) and p.en_passant:
+                            piece.add_move(Move(Square(row, col), Square(row-1, col+col_offset)))
+        else:
+            # Di chuyển xuống
+            if row < 7 and not self.squares[row+1][col].has_piece():
+                piece.add_move(Move(Square(row, col), Square(row+1, col)))
+                # Di chuyển 2 ô ở nước đầu
+                if row == 1 and not self.squares[row+2][col].has_piece():
+                    piece.add_move(Move(Square(row, col), Square(row+2, col)))
+            # Ăn chéo
+            for col_offset in [-1, 1]:
+                if 0 <= col + col_offset < 8 and row < 7:
+                    if self.squares[row+1][col+col_offset].has_enemy_piece(piece.color):
+                        piece.add_move(Move(Square(row, col), Square(row+1, col+col_offset)))
+                    # Bắt tốt qua đường
+                    elif row == 4 and self.squares[row][col+col_offset].has_piece():
+                        p = self.squares[row][col+col_offset].piece
+                        if isinstance(p, Pawn) and p.en_passant:
+                            piece.add_move(Move(Square(row, col), Square(row+1, col+col_offset)))
 
-        def knight_moves():
-            # quân mã có 8 nước đi
-            possible_moves = [
-                (row-2, col+1),
-                (row-1, col+2),
-                (row+1, col+2),
-                (row+2, col+1),
-                (row+2, col-1),
-                (row+1, col-2),
-                (row-1, col-2),
-                (row-2, col-1),
-            ]
+    def _calc_knight_moves(self, piece, row, col):
+        # Tối ưu hóa việc tính toán nước đi của mã
+        knight_moves = [
+            (-2, -1), (-2, 1), (-1, -2), (-1, 2),
+            (1, -2), (1, 2), (2, -1), (2, 1)
+        ]
+        for row_offset, col_offset in knight_moves:
+            new_row, new_col = row + row_offset, col + col_offset
+            if 0 <= new_row < 8 and 0 <= new_col < 8:
+                if not self.squares[new_row][new_col].has_team_piece(piece.color):
+                    piece.add_move(Move(Square(row, col), Square(new_row, new_col)))
 
-            for possible_move in possible_moves:
-                possible_move_row, possible_move_col = possible_move
+    def _calc_bishop_moves(self, piece, row, col):
+        # Tối ưu hóa việc tính toán nước đi của tượng
+        directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+        self._calc_sliding_moves(piece, row, col, directions)
 
-                if Square.in_range(possible_move_row, possible_move_col):
-                    if self.squares[possible_move_row][possible_move_col].isempty_or_enemy(piece.color):
-                        initial = Square(row, col)
-                        final_piece = self.squares[possible_move_row][possible_move_col].piece
-                        final  = Square(possible_move_row, possible_move_col, final_piece)
-                        move = Move(initial, final)
-                        if bool:
-                            if not self.in_check(piece, move):
-                                piece.add_move(move)
-                            else: break
-                        else:
-                            piece.add_move(move)
+    def _calc_rook_moves(self, piece, row, col):
+        # Tối ưu hóa việc tính toán nước đi của xe
+        directions = [(-1, 0), (1, 0), (0, -1), (0, 1)]
+        self._calc_sliding_moves(piece, row, col, directions)
 
-        def straightline_moves(incrs):
-            for incr in incrs:
-                row_incr, col_incr = incr
-                possible_move_row = row + row_incr
-                possible_move_col = col + col_incr
-                while True:
-                    if Square.in_range(possible_move_row, possible_move_col):
-                        initial = Square(row, col)
-                        final_piece = self.squares[possible_move_row][possible_move_col].piece
-                        final  = Square(possible_move_row, possible_move_col, final_piece)
+    def _calc_queen_moves(self, piece, row, col):
+        # Tối ưu hóa việc tính toán nước đi của hậu
+        directions = [
+            (-1, -1), (-1, 1), (1, -1), (1, 1),  # Đường chéo
+            (-1, 0), (1, 0), (0, -1), (0, 1)     # Đường thẳng
+        ]
+        self._calc_sliding_moves(piece, row, col, directions)
 
-                        move = Move(initial, final)
-                        
-                        if self.squares[possible_move_row][possible_move_col].isempty():
-                            if bool:
-                                if not self.in_check(piece, move):
-                                    piece.add_move(move)
-                            else:
-                                piece.add_move(move)
+    def _calc_king_moves(self, piece, row, col):
+        # Nước đi thường của vua
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1), (0, 1),
+            (1, -1), (1, 0), (1, 1)
+        ]
+        for row_offset, col_offset in directions:
+            new_row, new_col = row + row_offset, col + col_offset
+            if 0 <= new_row < 8 and 0 <= new_col < 8:
+                if not self.squares[new_row][new_col].has_team_piece(piece.color):
+                    piece.add_move(Move(Square(row, col), Square(new_row, new_col)))
+        # Nhập thành
+        if not piece.moved:
+            # Nhập thành gần (king-side)
+            if self._can_castle(piece, row, col, king_side=True):
+                piece.add_move(Move(Square(row, col), Square(row, col+2)))
+            # Nhập thành xa (queen-side)
+            if self._can_castle(piece, row, col, king_side=False):
+                piece.add_move(Move(Square(row, col), Square(row, col-2)))
 
-                        elif self.squares[possible_move_row][possible_move_col].has_enemy_piece(piece.color):
-                            if bool:
-                                if not self.in_check(piece, move):
-                                    piece.add_move(move)
-                            else:
-                                piece.add_move(move)
-                            break
-                        elif self.squares[possible_move_row][possible_move_col].has_team_piece(piece.color):
-                            break
-                    else: break
-                    possible_move_row = possible_move_row + row_incr
-                    possible_move_col = possible_move_col + col_incr
+    def _can_castle(self, king, row, col, king_side=True):
+        # Kiểm tra điều kiện nhập thành gần hoặc xa
+        if king.color == 'white':
+            back_row = 7
+        else:
+            back_row = 0
+        if king_side:
+            rook_col = 7
+            step = 1
+            between = [col+1, col+2]
+        else:
+            rook_col = 0
+            step = -1
+            between = [col-1, col-2, col-3]
+        # Kiểm tra xe
+        rook = self.squares[back_row][rook_col].piece
+        if not (rook and isinstance(rook, Rook) and not rook.moved):
+            return False
+        # Các ô giữa phải trống
+        for c in between:
+            if self.squares[back_row][c].has_piece():
+                return False
+        # Vua không bị chiếu, không đi qua hoặc đến ô bị chiếu
+        for c in [col, col+step, col+2*step] if king_side else [col, col-1, col-2]:
+            # Swap tạm thời
+            orig_king = self.squares[back_row][col].piece
+            orig_target = self.squares[back_row][c].piece
+            self.squares[back_row][col].piece = None
+            self.squares[back_row][c].piece = king
+            in_check = self._is_king_in_check(king.color)
+            self.squares[back_row][col].piece = orig_king
+            self.squares[back_row][c].piece = orig_target
+            if in_check:
+                return False
+        return True
 
-        def king_moves():
-            adjs = [
-                (row-1, col+0), 
-                (row-1, col+1), 
-                (row+0, col+1),
-                (row+1, col+1), 
-                (row+1, col+0), 
-                (row+1, col-1),
-                (row+0, col-1), 
-                (row-1, col-1), 
-            ]
+    def _is_king_in_check(self, color):
+        # Tìm vị trí vua
+        for row in range(8):
+            for col in range(8):
+                piece = self.squares[row][col].piece
+                if piece and isinstance(piece, King) and piece.color == color:
+                    king_pos = (row, col)
+                    break
+        else:
+            return False
+        # Kiểm tra có quân đối phương nào ăn được vua không
+        opponent = 'black' if color == 'white' else 'white'
+        for row in range(8):
+            for col in range(8):
+                piece = self.squares[row][col].piece
+                if piece and piece.color == opponent:
+                    self.calc_moves(piece, row, col)
+                    for move in piece.moves:
+                        if move.final.row == king_pos[0] and move.final.col == king_pos[1]:
+                            return True
+        return False
 
-            for possible_move in adjs:
-                possible_move_row, possible_move_col = possible_move
+    def _calc_sliding_moves(self, piece, row, col, directions):
+        # Tối ưu hóa việc tính toán nước đi trượt (tượng, xe, hậu)
+        for row_offset, col_offset in directions:
+            new_row, new_col = row + row_offset, col + col_offset
+            while 0 <= new_row < 8 and 0 <= new_col < 8:
+                if not self.squares[new_row][new_col].has_piece():
+                    piece.add_move(Move(Square(row, col), Square(new_row, new_col)))
+                elif self.squares[new_row][new_col].has_enemy_piece(piece.color):
+                    piece.add_move(Move(Square(row, col), Square(new_row, new_col)))
+                    break
+                else:
+                    break
+                new_row += row_offset
+                new_col += col_offset
 
-                if Square.in_range(possible_move_row, possible_move_col):
-                    if self.squares[possible_move_row][possible_move_col].isempty_or_enemy(piece.color):
-                        initial = Square(row, col)
-                        final = Square(possible_move_row, possible_move_col) 
-                        move = Move(initial, final)
-                        if bool:
-                            if not self.in_check(piece, move):
-                                piece.add_move(move)
-                        else:
-                            piece.add_move(move)
-
-            # nhập thành
-            if not piece.moved:
-                left_rook = self.squares[row][0].piece
-                if isinstance(left_rook, Rook):
-                    if not left_rook.moved:
-                        for c in range(1, 4):
-                            if self.squares[row][c].has_piece():
-                                break
-
-                            if c == 3:
-                                piece.left_rook = left_rook
-
-                                initial = Square(row, 0)
-                                final = Square(row, 3)
-                                moveR = Move(initial, final)
-
-                                initial = Square(row, col)
-                                final = Square(row, 2)
-                                moveK = Move(initial, final)
-
-                                if not self.check_castling(piece.color):
-                                    if bool:
-                                        if not self.in_check(piece, moveK, left_rook, moveR):
-                                            left_rook.add_move(moveR)
-                                            piece.add_move(moveK)
-                                    else:
-                                        left_rook.add_move(moveR)
-                                        piece.add_move(moveK)
-
-                right_rook = self.squares[row][7].piece
-                if isinstance(right_rook, Rook):
-                    if not right_rook.moved:
-                        for c in range(5, 7):
-                            if self.squares[row][c].has_piece():
-                                break
-
-                            if c == 6:
-                                piece.right_rook = right_rook
-
-                                initial = Square(row, 7)
-                                final = Square(row, 5)
-                                moveR = Move(initial, final)
-
-                                initial = Square(row, col)
-                                final = Square(row, 6)
-                                moveK = Move(initial, final)
-                                if not self.check_castling(piece.color):
-                                    if bool:
-                                        if not self.in_check(piece, moveK, right_rook, moveR):
-                                            right_rook.add_move(moveR)
-                                            piece.add_move(moveK)
-                                    else:
-                                        right_rook.add_move(moveR)
-                                        piece.add_move(moveK)
-
-        if isinstance(piece, Pawn): 
-            pawn_moves()
-
-        elif isinstance(piece, Knight): 
-            knight_moves()
-
-        elif isinstance(piece, Bishop): 
-            straightline_moves([
-                (-1, 1),
-                (-1, -1),
-                (1, 1),
-                (1, -1)
-            ])
-
-        elif isinstance(piece, Rook): 
-            straightline_moves([
-                (-1, 0),
-                (0, 1),
-                (1, 0),
-                (0, -1)
-            ])
-
-        elif isinstance(piece, Queen): 
-            straightline_moves([
-                (-1, 1),
-                (-1, -1),
-                (1, 1),
-                (1, -1),
-                (-1, 0),
-                (0, 1),
-                (1, 0),
-                (0, -1)
-            ])
-
-        elif isinstance(piece, King): 
-            king_moves()
-
-    def _creat(self):
-        for row in range(ROWS):
-            for col in range(COLS):
+    def _create(self):
+        # Khởi tạo bàn cờ với các quân cờ
+        for row in range(8):
+            for col in range(8):
                 self.squares[row][col] = Square(row, col)
 
-    def _add_piece(self, color):
-        row_pawn, row_other = (6, 7) if color == "white" else (1, 0)
-        
-        # tạo quân tốt
-        for col in range(COLS):
-            self.squares[row_pawn][col] = Square(row_pawn, col, Pawn(color))
-        # tạo quân mã
-        self.squares[row_other][1] = Square(row_pawn, col, Knight(color))
-        self.squares[row_other][6] = Square(row_pawn, col, Knight(color))
+        # Đặt quân đen
+        self.squares[0][0] = Square(0, 0, Rook('black'))
+        self.squares[0][1] = Square(0, 1, Knight('black'))
+        self.squares[0][2] = Square(0, 2, Bishop('black'))
+        self.squares[0][3] = Square(0, 3, Queen('black'))
+        self.squares[0][4] = Square(0, 4, King('black'))
+        self.squares[0][5] = Square(0, 5, Bishop('black'))
+        self.squares[0][6] = Square(0, 6, Knight('black'))
+        self.squares[0][7] = Square(0, 7, Rook('black'))
+        for col in range(8):
+            self.squares[1][col] = Square(1, col, Pawn('black'))
 
-        # tạo quân tượng
-        self.squares[row_other][2] = Square(row_pawn, col, Bishop(color))
-        self.squares[row_other][5] = Square(row_pawn, col, Bishop(color))
+        # Đặt quân trắng
+        self.squares[7][0] = Square(7, 0, Rook('white'))
+        self.squares[7][1] = Square(7, 1, Knight('white'))
+        self.squares[7][2] = Square(7, 2, Bishop('white'))
+        self.squares[7][3] = Square(7, 3, Queen('white'))
+        self.squares[7][4] = Square(7, 4, King('white'))
+        self.squares[7][5] = Square(7, 5, Bishop('white'))
+        self.squares[7][6] = Square(7, 6, Knight('white'))
+        self.squares[7][7] = Square(7, 7, Rook('white'))
+        for col in range(8):
+            self.squares[6][col] = Square(6, col, Pawn('white'))
 
-        # tạo quân xe
-        self.squares[row_other][0] = Square(row_pawn, col, Rook(color))
-        self.squares[row_other][7] = Square(row_pawn, col, Rook(color))
+    def get_board_state(self):
+        # Tạo một chuỗi đại diện cho trạng thái bàn cờ
+        state = []
+        for row in range(8):
+            for col in range(8):
+                piece = self.squares[row][col].piece
+                if piece:
+                    state.append(f"{piece.color}_{piece.name}_{row}_{col}")
+        return tuple(state)
 
-        # tạo quân hậu
-        self.squares[row_other][3] = Square(row_pawn, col, Queen(color))
-
-        # tạo quân vua
-        self.squares[row_other][4] = Square(row_pawn, col, King(color))
+    def clear_moves_cache(self):
+        """
+        Xóa cache các nước đi
+        """
+        self._move_cache.clear()
+        self._valid_moves_cache.clear()
+        self._check_cache.clear()
