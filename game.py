@@ -275,6 +275,7 @@ class Game:
         if self.game_over:
             return
 
+        print('AI is thinking...')  # Log để kiểm tra AI được gọi
         current_time = time.time()
         if current_time - self.last_move_time < self.move_cooldown:
             return
@@ -284,6 +285,7 @@ class Game:
 
         move = find_best_move(self.board, self.ai_color, depth=3)
         if move:
+            print(f'AI move: {move}')  # Log nước đi của AI
             piece = self.board.squares[move.initial.row][move.initial.col].piece
             self.move(piece, move)
             self.last_move_time = time.time()
@@ -382,10 +384,35 @@ class Game:
         else:
             self.config.move_sound.play()
 
+    def get_all_legal_moves(self, color):
+        legal_moves = []
+        for row in range(ROWS):
+            for col in range(COLS):
+                piece = self.board.squares[row][col].piece
+                if piece and piece.color == color:
+                    self.board.calc_moves(piece, row, col, bool=True)
+                    for move in piece.moves:
+                        # Thử đi nước cờ
+                        initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
+                        final_piece = self.board.squares[move.final.row][move.final.col].piece
+                        self.board.squares[move.final.row][move.final.col].piece = initial_piece
+                        self.board.squares[move.initial.row][move.initial.col].piece = None
+                        still_in_check = self.is_check(color)
+                        self.board.squares[move.initial.row][move.initial.col].piece = initial_piece
+                        self.board.squares[move.final.row][move.final.col].piece = final_piece
+                        if not still_in_check:
+                            legal_moves.append((piece, move))
+        return legal_moves
+
     def move(self, piece, move):
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
         """
+        # Chỉ cho phép đi nước hợp lệ
+        legal_moves = self.get_all_legal_moves(piece.color)
+        if not any(m == move for p, m in legal_moves):
+            print("Nước đi không hợp lệ!")
+            return
         # Thực hiện nước đi
         self.board.move(piece, move)
         self.board.set_true_en_passant(piece)
@@ -439,13 +466,15 @@ class Game:
                 self.promotion_col = False
                 self.promotion_color = False
         # Kiểm tra chiếu hết/hòa
-        if self.is_checkmate(self.next_player):
-            self.game_over = True
-            print(f"{self.next_player} bị chiếu hết!")
-        elif self.is_stalemate(self.next_player):
-            self.game_over = True
-            print("Hòa!")
-        self.next_turn()
+        next_color = 'white' if piece.color == 'black' else 'black'
+        legal_moves_next = self.get_all_legal_moves(next_color)
+        if not legal_moves_next:
+            if self.is_check(next_color):
+                print(f"{piece.color.capitalize()} thắng! {next_color.capitalize()} bị chiếu hết!")
+                self.game_over = True
+            else:
+                print("Hòa! Không còn nước đi hợp lệ.")
+                self.game_over = True
 
     def clear_moves_cache(self):
         """

@@ -115,9 +115,7 @@ def evaluate_board(board, color):
         'king': 0
     }
     total = 0
-    # Xác định số nước đi (move_number)
     move_number = getattr(board, 'move_number', 0)
-    # Xác định bảng điểm vị trí theo giai đoạn
     if move_number <= 10:
         use_pos = False
         tables = None
@@ -127,8 +125,9 @@ def evaluate_board(board, color):
     else:
         use_pos = True
         tables = PIECE_TABLES
-    # Các ô trung tâm
     center_squares = [(3,3), (3,4), (4,3), (4,4)]
+    white_castled = False
+    black_castled = False
     for row in range(8):
         for col in range(8):
             square = board.squares[row][col]
@@ -140,105 +139,151 @@ def evaluate_board(board, color):
                     table = tables.get(piece.name)
                     if table:
                         pos_score = table[row][col] if piece.color == 'white' else table[7-row][col]
-                # Điểm kiểm soát trung tâm
                 center_bonus = 0
                 if (row, col) in center_squares:
                     center_bonus = 20
+                # Khuyến khích phát triển quân nhẹ
+                develop_bonus = 0
+                if piece.name in ('knight', 'bishop'):
+                    if (piece.color == 'white' and row > 0) or (piece.color == 'black' and row < 7):
+                        develop_bonus = 30
+                # Kiểm tra nhập thành
+                castle_bonus = 0
+                if piece.name == 'king':
+                    if piece.color == 'white' and row == 7 and col != 4:
+                        white_castled = True
+                    if piece.color == 'black' and row == 0 and col != 4:
+                        black_castled = True
                 if piece.color == color:
-                    total += value + 0.1 * pos_score + center_bonus
+                    total += value + 0.1 * pos_score + center_bonus + develop_bonus
                 else:
-                    total -= value + 0.1 * pos_score + center_bonus
+                    total -= value + 0.1 * pos_score + center_bonus + develop_bonus
+    # Cộng điểm nhập thành
+    if color == 'white' and white_castled:
+        total += 50
+    if color == 'black' and black_castled:
+        total += 50
     return total
 
-def minimax(board, depth, alpha, beta, maximizing_player, color, cache):
-    board_state = board.get_board_state()
-    if (board_state, depth, maximizing_player) in cache:
-        return cache[(board_state, depth, maximizing_player)]
-    if depth == 0:
-        eval_score = evaluate_board(board, color)
-        cache[(board_state, depth, maximizing_player)] = eval_score
-        return eval_score
-    moves = []
+def generate_legal_moves(board, color):
+    legal_moves = []
     for row in range(8):
         for col in range(8):
             square = board.squares[row][col]
-            if square.has_piece() and square.piece.color == (color if maximizing_player else ('black' if color == 'white' else 'white')):
+            if square.has_piece() and square.piece.color == color:
                 piece = square.piece
-                board.calc_moves(piece, row, col)
+                board.calc_moves(piece, row, col, bool=True)
                 for move in piece.moves:
-                    moves.append((piece, move))
+                    # Thử đi nước cờ
+                    initial = move.initial
+                    final = move.final
+                    captured = board.squares[final.row][final.col].piece
+                    board.squares[initial.row][initial.col].piece = None
+                    board.squares[final.row][final.col].piece = piece
+                    # Kiểm tra vua có bị chiếu không
+                    king_in_check = False
+                    # Tìm vị trí vua
+                    king_pos = None
+                    for r in range(8):
+                        for c in range(8):
+                            p = board.squares[r][c].piece
+                            if p and p.name == 'king' and p.color == color:
+                                king_pos = (r, c)
+                    if king_pos:
+                        opponent = 'black' if color == 'white' else 'white'
+                        for r in range(8):
+                            for c in range(8):
+                                op = board.squares[r][c].piece
+                                if op and op.color == opponent:
+                                    board.calc_moves(op, r, c, bool=True)
+                                    for m in op.moves:
+                                        if m.final.row == king_pos[0] and m.final.col == king_pos[1]:
+                                            king_in_check = True
+                    # Hoàn tác nước đi
+                    board.squares[initial.row][initial.col].piece = piece
+                    board.squares[final.row][final.col].piece = captured
+                    if not king_in_check:
+                        legal_moves.append((piece, move))
+    return legal_moves
+
+def minimax(board, depth, alpha, beta, maximizing_player, color):
+    if depth == 0:
+        return evaluate_board(board, color)
+    current_color = color if maximizing_player else ('black' if color == 'white' else 'white')
+    moves = generate_legal_moves(board, current_color)
     if not moves:
         # Không còn nước đi, kiểm tra chiếu hết/hòa
-        from game import Game
-        game = Game()
-        game.board = board
-        if game.is_checkmate(color if maximizing_player else ('black' if color == 'white' else 'white')):
+        # Tìm vị trí vua
+        king_pos = None
+        for r in range(8):
+            for c in range(8):
+                p = board.squares[r][c].piece
+                if p and p.name == 'king' and p.color == current_color:
+                    king_pos = (r, c)
+        in_check = False
+        if king_pos:
+            opponent = 'black' if current_color == 'white' else 'white'
+            for r in range(8):
+                for c in range(8):
+                    op = board.squares[r][c].piece
+                    if op and op.color == opponent:
+                        board.calc_moves(op, r, c, bool=True)
+                        for m in op.moves:
+                            if m.final.row == king_pos[0] and m.final.col == king_pos[1]:
+                                in_check = True
+        if in_check:
             return -math.inf if maximizing_player else math.inf
         else:
             return 0
     if maximizing_player:
         max_eval = -math.inf
         for piece, move in moves:
-            # Thực hiện nước đi tạm thời
             initial = move.initial
             final = move.final
             captured = board.squares[final.row][final.col].piece
             board.squares[initial.row][initial.col].piece = None
             board.squares[final.row][final.col].piece = piece
-            eval = minimax(board, depth-1, alpha, beta, False, color, cache)
-            # Hoàn tác nước đi
+            eval = minimax(board, depth-1, alpha, beta, False, color)
             board.squares[initial.row][initial.col].piece = piece
             board.squares[final.row][final.col].piece = captured
             max_eval = max(max_eval, eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
                 break
-        cache[(board_state, depth, maximizing_player)] = max_eval
         return max_eval
     else:
         min_eval = math.inf
         for piece, move in moves:
-            # Thực hiện nước đi tạm thời
             initial = move.initial
             final = move.final
             captured = board.squares[final.row][final.col].piece
             board.squares[initial.row][initial.col].piece = None
             board.squares[final.row][final.col].piece = piece
-            eval = minimax(board, depth-1, alpha, beta, True, color, cache)
-            # Hoàn tác nước đi
+            eval = minimax(board, depth-1, alpha, beta, True, color)
             board.squares[initial.row][initial.col].piece = piece
             board.squares[final.row][final.col].piece = captured
             min_eval = min(min_eval, eval)
             beta = min(beta, eval)
             if beta <= alpha:
                 break
-        cache[(board_state, depth, maximizing_player)] = min_eval
         return min_eval
 
 def find_best_move(board, color, depth=3):
     best_move = None
     best_eval = -math.inf
-    cache = {}
-    for row in range(8):
-        for col in range(8):
-            square = board.squares[row][col]
-            if square.has_piece() and square.piece.color == color:
-                piece = square.piece
-                board.calc_moves(piece, row, col)
-                for move in piece.moves:
-                    # Thực hiện nước đi tạm thời
-                    initial = move.initial
-                    final = move.final
-                    captured = board.squares[final.row][final.col].piece
-                    board.squares[initial.row][initial.col].piece = None
-                    board.squares[final.row][final.col].piece = piece
-                    eval = minimax(board, depth-1, -math.inf, math.inf, False, color, cache)
-                    # Hoàn tác nước đi
-                    board.squares[initial.row][initial.col].piece = piece
-                    board.squares[final.row][final.col].piece = captured
-                    if eval > best_eval:
-                        best_eval = eval
-                        best_move = (piece, move)
+    moves = generate_legal_moves(board, color)
+    for piece, move in moves:
+        initial = move.initial
+        final = move.final
+        captured = board.squares[final.row][final.col].piece
+        board.squares[initial.row][initial.col].piece = None
+        board.squares[final.row][final.col].piece = piece
+        eval = minimax(board, depth-1, -math.inf, math.inf, False, color)
+        board.squares[initial.row][initial.col].piece = piece
+        board.squares[final.row][final.col].piece = captured
+        if eval > best_eval:
+            best_eval = eval
+            best_move = (piece, move)
     if best_move:
         return best_move[1]
     return None 
