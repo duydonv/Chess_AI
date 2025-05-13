@@ -249,6 +249,19 @@ def generate_legal_moves(board, color):
                     board.squares[final.row][final.col].piece = captured
                     if not king_in_check:
                         legal_moves.append((piece, move))
+    # Sắp xếp nước đi: nước ăn quân và phong hậu lên trước
+    def move_score(item):
+        piece, move = item
+        captured = board.squares[move.final.row][move.final.col].piece
+        # Ưu tiên nước ăn quân
+        score = 0
+        if captured is not None:
+            score += 10 + getattr(captured, 'value', 1)
+        # Ưu tiên phong hậu
+        if piece.name == 'pawn' and (move.final.row == 0 or move.final.row == 7):
+            score += 20
+        return -score  # Sắp xếp giảm dần
+    legal_moves.sort(key=move_score)
     return legal_moves
 
 def minimax(board, depth, alpha, beta, maximizing_player, color):
