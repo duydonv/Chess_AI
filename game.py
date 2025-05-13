@@ -411,7 +411,7 @@ class Game:
         # Chỉ cho phép đi nước hợp lệ
         legal_moves = self.get_all_legal_moves(piece.color)
         if not any(m == move for p, m in legal_moves):
-            print("Nước đi không hợp lệ!")
+            print("Nuoc di khong hop le!")
             return
         # Thực hiện nước đi
         self.board.move(piece, move)
@@ -470,10 +470,10 @@ class Game:
         legal_moves_next = self.get_all_legal_moves(next_color)
         if not legal_moves_next:
             if self.is_check(next_color):
-                print(f"{piece.color.capitalize()} thắng! {next_color.capitalize()} bị chiếu hết!")
+                print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
                 self.game_over = True
             else:
-                print("Hòa! Không còn nước đi hợp lệ.")
+                print("Hoa! Khong con nuoc di hop lele.")
                 self.game_over = True
 
     def clear_moves_cache(self):

@@ -1,4 +1,7 @@
 import math
+from square import Square
+from move import Move
+#Diem cho long vong qua
 
 # Bảng điểm vị trí đơn giản cho từng quân (giá trị cho white, black sẽ đảo ngược)
 PAWN_TABLE = [
@@ -9,7 +12,7 @@ PAWN_TABLE = [
     [5, 5, 10, 25, 25, 10, 5, 5],
     [10, 10, 20, 30, 30, 20, 10, 10],
     [50, 50, 50, 50, 50, 50, 50, 50],
-    [0, 0, 0, 0, 0, 0, 0, 0]
+    [100, 100, 100, 100, 100, 100, 100, 100]  # Khuyến khích phong quân
 ]
 KNIGHT_TABLE = [
     [-50, -40, -30, -30, -30, -30, -40, -50],
@@ -74,12 +77,12 @@ PIECE_TABLES = {
 # Bảng điểm vị trí tàn cuộc đơn giản (có thể mở rộng sau)
 PAWN_TABLE_ENDGAME = [
     [0, 0, 0, 0, 0, 0, 0, 0],
-    [10, 10, 10, 10, 10, 10, 10, 10],
-    [20, 20, 20, 20, 20, 20, 20, 20],
-    [30, 30, 30, 30, 30, 30, 30, 30],
-    [40, 40, 40, 40, 40, 40, 40, 40],
-    [50, 50, 50, 50, 50, 50, 50, 50],
+    [80, 80, 80, 80, 80, 80, 80, 80],
     [60, 60, 60, 60, 60, 60, 60, 60],
+    [40, 40, 40, 40, 40, 40, 40, 40],
+    [20, 20, 20, 20, 20, 20, 20, 20],
+    [10, 10, 10, 10, 10, 10, 10, 10],
+    [5, 5, 5, 5, 5, 5, 5, 5],
     [0, 0, 0, 0, 0, 0, 0, 0]
 ]
 KNIGHT_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
@@ -87,14 +90,14 @@ BISHOP_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
 ROOK_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
 QUEEN_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
 KING_TABLE_ENDGAME = [
-    [-10, -10, -10, -10, -10, -10, -10, -10],
-    [-10, 10, 10, 10, 10, 10, 10, -10],
-    [-10, 10, 20, 20, 20, 20, 10, -10],
-    [-10, 10, 20, 30, 30, 20, 10, -10],
-    [-10, 10, 20, 30, 30, 20, 10, -10],
-    [-10, 10, 20, 20, 20, 20, 10, -10],
-    [-10, 10, 10, 10, 10, 10, 10, -10],
-    [-10, -10, -10, -10, -10, -10, -10, -10]
+    [-50, -40, -30, -20, -20, -30, -40, -50],
+    [-30, -20, -10, 0, 0, -10, -20, -30],
+    [-20, -10, 20, 30, 30, 20, -10, -20],
+    [-10, 0, 30, 40, 40, 30, 0, -10],
+    [-10, 0, 30, 40, 40, 30, 0, -10],
+    [-20, -10, 20, 30, 30, 20, -10, -20],
+    [-30, -20, -10, 0, 0, -10, -20, -30],
+    [-50, -40, -30, -20, -20, -30, -40, -50]
 ]
 PIECE_TABLES_ENDGAME = {
     'pawn': PAWN_TABLE_ENDGAME,
@@ -104,6 +107,25 @@ PIECE_TABLES_ENDGAME = {
     'queen': QUEEN_TABLE_ENDGAME,
     'king': KING_TABLE_ENDGAME
 }
+
+def get_opening_moves(move_number):
+    """
+    Trả về nước đi khai cuộc dựa trên số nước đã đi
+    move_number là số nước đi của cả bàn cờ (gấp đôi số nước của AI)
+    """
+    # Sicilian Defense - một trong những khai cuộc mạnh nhất cho quân đen
+    # Chia 2 vì move_number là số nước đi của cả bàn cờ
+    ai_move_number = move_number // 2
+    
+    opening_moves = {
+        1: {'initial': (1, 4), 'final': (3, 4)},  # e5
+        2: {'initial': (0, 1), 'final': (2, 2)},  # Nc6
+        3: {'initial': (1, 1), 'final': (2, 1)},  # b6
+        4: {'initial': (0, 6), 'final': (2, 5)},  # Bb7
+        5: {'initial': (0, 5), 'final': (1, 6)},  # O-O (nhập thành)
+    }
+    
+    return opening_moves.get(ai_move_number)
 
 def evaluate_board(board, color):
     piece_values = {
@@ -116,18 +138,26 @@ def evaluate_board(board, color):
     }
     total = 0
     move_number = getattr(board, 'move_number', 0)
+    
+    # Điều chỉnh logic chọn bảng điểm
     if move_number <= 10:
-        use_pos = False
-        tables = None
+        use_pos = True
+        tables = PIECE_TABLES  # Vẫn sử dụng bảng điểm thường
+        # Tăng hệ số cho các yếu tố khai cuộc
+        opening_factor = 1.5
     elif move_number >= 40:
         use_pos = True
         tables = PIECE_TABLES_ENDGAME
+        opening_factor = 1.0
     else:
         use_pos = True
         tables = PIECE_TABLES
+        opening_factor = 1.0
+
     center_squares = [(3,3), (3,4), (4,3), (4,4)]
     white_castled = False
     black_castled = False
+
     for row in range(8):
         for col in range(8):
             square = board.squares[row][col]
@@ -139,30 +169,43 @@ def evaluate_board(board, color):
                     table = tables.get(piece.name)
                     if table:
                         pos_score = table[row][col] if piece.color == 'white' else table[7-row][col]
+                
+                # Tăng điểm cho các yếu tố khai cuộc
                 center_bonus = 0
                 if (row, col) in center_squares:
-                    center_bonus = 20
-                # Khuyến khích phát triển quân nhẹ
+                    center_bonus = 20 * opening_factor
+
                 develop_bonus = 0
                 if piece.name in ('knight', 'bishop'):
                     if (piece.color == 'white' and row > 0) or (piece.color == 'black' and row < 7):
-                        develop_bonus = 30
-                # Kiểm tra nhập thành
-                castle_bonus = 0
+                        develop_bonus = 30 * opening_factor
+
+                # Thêm bonus cho việc bảo vệ vua trong khai cuộc
+                king_safety_bonus = 0
                 if piece.name == 'king':
                     if piece.color == 'white' and row == 7 and col != 4:
                         white_castled = True
                     if piece.color == 'black' and row == 0 and col != 4:
                         black_castled = True
+                    # Thêm điểm cho vua ở vị trí an toàn
+                    if move_number <= 10:
+                        if piece.color == 'white' and row == 7:
+                            king_safety_bonus = 20
+                        if piece.color == 'black' and row == 0:
+                            king_safety_bonus = 20
+
                 if piece.color == color:
-                    total += value + 0.1 * pos_score + center_bonus + develop_bonus
+                    total += value + 0.3 * pos_score + center_bonus + develop_bonus + king_safety_bonus
                 else:
-                    total -= value + 0.1 * pos_score + center_bonus + develop_bonus
-    # Cộng điểm nhập thành
+                    total -= value + 0.3 * pos_score + center_bonus + develop_bonus + king_safety_bonus
+
+    # Tăng điểm nhập thành trong khai cuộc
+    castle_bonus = 50 * opening_factor
     if color == 'white' and white_castled:
-        total += 50
+        total += castle_bonus
     if color == 'black' and black_castled:
-        total += 50
+        total += castle_bonus
+
     return total
 
 def generate_legal_moves(board, color):
@@ -269,6 +312,22 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
         return min_eval
 
 def find_best_move(board, color, depth=3):
+    # Thêm logic khai cuộc
+    if color == 'black' and board.move_number < 12:  # 6 nước của AI = 12 nước của cả bàn cờ
+        opening_move = get_opening_moves(board.move_number)
+        if opening_move:
+            # Tìm quân cờ ở vị trí initial
+            piece = board.squares[opening_move['initial'][0]][opening_move['initial'][1]].piece
+            if piece and piece.color == color:
+                # Tạo nước đi
+                initial = Square(opening_move['initial'][0], opening_move['initial'][1])
+                final = Square(opening_move['final'][0], opening_move['final'][1])
+                move = Move(initial, final)
+                # Kiểm tra nước đi hợp lệ
+                if board.valid_move(piece, move):
+                    return move
+    
+    # Nếu không có nước khai cuộc hoặc đã hết khai cuộc, sử dụng minimax
     best_move = None
     best_eval = -math.inf
     moves = generate_legal_moves(board, color)

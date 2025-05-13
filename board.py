@@ -13,6 +13,7 @@ class Board:
         # Sử dụng list lồng nhau để biểu diễn bàn cờ (tối ưu hơn numpy object array)
         self.squares = [[Square(row, col) for col in range(8)] for row in range(8)]
         self.last_move = None
+        self.move_number = 0  # Thêm biến đếm số nước đi
         self._create()
         self._move_cache = {}  # Cache cho các nước đi
         self._valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
@@ -53,6 +54,9 @@ class Board:
         piece.clear_moves()
         # lưu vị trí cũ
         self.last_move = move
+        # Tăng số nước đi
+        if not testing:
+            self.move_number += 1
         # Xóa cache
         self._move_cache.clear()
         self._valid_moves_cache.clear()
