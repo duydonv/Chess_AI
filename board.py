@@ -7,6 +7,19 @@ from piece import *
 from move import Move
 from sound import Sound
 
+class MoveState:
+    def __init__(self, initial, final, moved_piece, captured_piece, last_move, move_number, en_passant_state, moved_piece_moved, captured_piece_moved, castle_info=None):
+        self.initial = initial
+        self.final = final
+        self.moved_piece = moved_piece
+        self.captured_piece = captured_piece
+        self.last_move = last_move
+        self.move_number = move_number
+        self.en_passant_state = en_passant_state
+        self.moved_piece_moved = moved_piece_moved
+        self.captured_piece_moved = captured_piece_moved
+        self.castle_info = castle_info  # dict chứa thông tin nhập thành nếu có
+
 class Board:
 
     def __init__(self):
@@ -18,6 +31,7 @@ class Board:
         self._move_cache = {}  # Cache cho các nước đi
         self._valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
         self._check_cache = {}  # Cache cho trạng thái chiếu
+        self.move_stack = []  # Stack lưu trạng thái để undo
 
     def move(self, piece, move, testing=False):
         initial = move.initial
@@ -41,13 +55,15 @@ class Board:
                     rook_from = self.squares[row][7].piece
                     self.squares[row][7].piece = None
                     self.squares[row][final.col-1].piece = rook_from
-                    rook_from.moved = True
+                    if rook_from is not None:
+                        rook_from.moved = True
                 else:
                     # Nhập thành xa
                     rook_from = self.squares[row][0].piece
                     self.squares[row][0].piece = None
                     self.squares[row][final.col+1].piece = rook_from
-                    rook_from.moved = True
+                    if rook_from is not None:
+                        rook_from.moved = True
         # đánh dấu đã di chuyển
         piece.moved = True
         # xóa các bước có thể đi ở vị trí cũ
@@ -364,6 +380,90 @@ class Board:
         """
         Xóa cache các nước đi
         """
+        self._move_cache.clear()
+        self._valid_moves_cache.clear()
+        self._check_cache.clear()
+
+    def make_move(self, piece, move):
+        initial = move.initial
+        final = move.final
+        moved_piece = piece
+        captured_piece = self.squares[final.row][final.col].piece
+        last_move = self.last_move
+        move_number = self.move_number
+        moved_piece_moved = piece.moved
+        captured_piece_moved = captured_piece.moved if captured_piece else None
+        # Lưu trạng thái en passant cho tất cả tốt
+        en_passant_state = {}
+        for row in range(8):
+            for col in range(8):
+                p = self.squares[row][col].piece
+                if p and hasattr(p, 'en_passant'):
+                    en_passant_state[(row, col)] = p.en_passant
+        # Nếu là nhập thành, lưu thông tin cần thiết
+        castle_info = None
+        if isinstance(piece, King) and abs(final.col - initial.col) == 2:
+            row = initial.row
+            if final.col > initial.col:
+                rook_from_col = 7
+                rook_to_col = final.col - 1
+            else:
+                rook_from_col = 0
+                rook_to_col = final.col + 1
+            rook_piece = self.squares[row][rook_from_col].piece
+            rook_moved = rook_piece.moved if rook_piece else None
+            king_moved = piece.moved
+            castle_info = {
+                'row': row,
+                'rook_from_col': rook_from_col,
+                'rook_to_col': rook_to_col,
+                'rook_piece': rook_piece,
+                'rook_moved': rook_moved,
+                'king_piece': piece,
+                'king_initial': (initial.row, initial.col),
+                'king_final': (final.row, final.col),
+                'king_moved': king_moved
+            }
+        state = MoveState(initial, final, moved_piece, captured_piece, last_move, move_number, en_passant_state, moved_piece_moved, captured_piece_moved, castle_info)
+        self.move_stack.append(state)
+        # Thực hiện nước đi như cũ
+        self.move(piece, move)
+
+    def undo_move(self):
+        if not self.move_stack:
+            return
+        state = self.move_stack.pop()
+        # Nếu là undo nhập thành, trả xe và vua về vị trí cũ và khôi phục trạng thái moved
+        if state.castle_info is not None:
+            info = state.castle_info
+            row = info['row']
+            # Khôi phục xe về vị trí cũ và trạng thái moved
+            self.squares[row][info['rook_from_col']].piece = info['rook_piece']
+            self.squares[row][info['rook_to_col']].piece = None
+            if info['rook_piece']:
+                info['rook_piece'].moved = info['rook_moved']
+            # Khôi phục vua về vị trí cũ và trạng thái moved
+            self.squares[info['king_initial'][0]][info['king_initial'][1]].piece = info['king_piece']
+            self.squares[info['king_final'][0]][info['king_final'][1]].piece = None
+            if info['king_piece']:
+                info['king_piece'].moved = info['king_moved']
+        else:
+            # Khôi phục trạng thái quân cờ bình thường
+            self.squares[state.initial.row][state.initial.col].piece = state.moved_piece
+            self.squares[state.final.row][state.final.col].piece = state.captured_piece
+            # Khôi phục trạng thái moved
+            state.moved_piece.moved = state.moved_piece_moved
+            if state.captured_piece:
+                state.captured_piece.moved = state.captured_piece_moved
+        # Khôi phục trạng thái en passant cho tất cả tốt
+        for (row, col), en_passant in state.en_passant_state.items():
+            p = self.squares[row][col].piece
+            if p and hasattr(p, 'en_passant'):
+                p.en_passant = en_passant
+        # Khôi phục last_move, move_number
+        self.last_move = state.last_move
+        self.move_number = state.move_number
+        # Xóa cache
         self._move_cache.clear()
         self._valid_moves_cache.clear()
         self._check_cache.clear()

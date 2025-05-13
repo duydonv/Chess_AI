@@ -124,7 +124,8 @@ def get_opening_moves(move_number):
         2: {'initial': (0, 1), 'final': (2, 2)},  # Nc6
         3: {'initial': (1, 1), 'final': (2, 1)},  # b6
         4: {'initial': (0, 6), 'final': (2, 5)},  # Bb7
-        5: {'initial': (0, 5), 'final': (1, 6)},  # O-O (nhập thành)
+        5: {'initial': (0, 5), 'final': (1, 4)},  # phát triển tịnh
+        6: {'initial': (0, 4), 'final': (0, 6)},  # O-O (nhập thành)
     }
     
     return opening_moves.get(ai_move_number)
@@ -220,11 +221,7 @@ def generate_legal_moves(board, color):
                 board.calc_moves(piece, row, col, bool=True)
                 for move in piece.moves:
                     # Thử đi nước cờ
-                    initial = move.initial
-                    final = move.final
-                    captured = board.squares[final.row][final.col].piece
-                    board.squares[initial.row][initial.col].piece = None
-                    board.squares[final.row][final.col].piece = piece
+                    board.make_move(piece, move)
                     # Kiểm tra vua có bị chiếu không
                     king_in_check = False
                     # Tìm vị trí vua
@@ -244,9 +241,7 @@ def generate_legal_moves(board, color):
                                     for m in op.moves:
                                         if m.final.row == king_pos[0] and m.final.col == king_pos[1]:
                                             king_in_check = True
-                    # Hoàn tác nước đi
-                    board.squares[initial.row][initial.col].piece = piece
-                    board.squares[final.row][final.col].piece = captured
+                    board.undo_move()
                     if not king_in_check:
                         legal_moves.append((piece, move))
     # Sắp xếp nước đi: nước ăn quân và phong hậu lên trước
@@ -296,14 +291,9 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
     if maximizing_player:
         max_eval = -math.inf
         for piece, move in moves:
-            initial = move.initial
-            final = move.final
-            captured = board.squares[final.row][final.col].piece
-            board.squares[initial.row][initial.col].piece = None
-            board.squares[final.row][final.col].piece = piece
+            board.make_move(piece, move)
             eval = minimax(board, depth-1, alpha, beta, False, color)
-            board.squares[initial.row][initial.col].piece = piece
-            board.squares[final.row][final.col].piece = captured
+            board.undo_move()
             max_eval = max(max_eval, eval)
             alpha = max(alpha, eval)
             if beta <= alpha:
@@ -312,14 +302,9 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
     else:
         min_eval = math.inf
         for piece, move in moves:
-            initial = move.initial
-            final = move.final
-            captured = board.squares[final.row][final.col].piece
-            board.squares[initial.row][initial.col].piece = None
-            board.squares[final.row][final.col].piece = piece
+            board.make_move(piece, move)
             eval = minimax(board, depth-1, alpha, beta, True, color)
-            board.squares[initial.row][initial.col].piece = piece
-            board.squares[final.row][final.col].piece = captured
+            board.undo_move()
             min_eval = min(min_eval, eval)
             beta = min(beta, eval)
             if beta <= alpha:
@@ -329,7 +314,7 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
 def find_best_move(board, color, depth=3):
     # Thêm logic khai cuộc
     if color == 'black' and board.move_number < 12:  # 6 nước của AI = 12 nước của cả bàn cờ
-        opening_move = get_opening_moves(board.move_number)
+        opening_move = get_opening_moves(board.move_number + 1)
         if opening_move:
             # Tìm quân cờ ở vị trí initial
             piece = board.squares[opening_move['initial'][0]][opening_move['initial'][1]].piece
@@ -344,20 +329,14 @@ def find_best_move(board, color, depth=3):
                     return move
                 else:
                      print('Nuoc khai cuoc khong hop le, chuyen sang minimax')
-    
     # Nếu không có nước khai cuộc hoặc đã hết khai cuộc, sử dụng minimax
     best_move = None
     best_eval = -math.inf
     moves = generate_legal_moves(board, color)
     for piece, move in moves:
-        initial = move.initial
-        final = move.final
-        captured = board.squares[final.row][final.col].piece
-        board.squares[initial.row][initial.col].piece = None
-        board.squares[final.row][final.col].piece = piece
+        board.make_move(piece, move)
         eval = minimax(board, depth-1, -math.inf, math.inf, False, color)
-        board.squares[initial.row][initial.col].piece = piece
-        board.squares[final.row][final.col].piece = captured
+        board.undo_move()
         if eval > best_eval:
             best_eval = eval
             best_move = (piece, move)

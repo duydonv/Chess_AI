@@ -473,7 +473,7 @@ class Game:
                 print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
                 self.game_over = True
             else:
-                print("Hoa! Khong con nuoc di hop lele.")
+                print("Hoa! Khong con nuoc di hop le.")
                 self.game_over = True
 
     def clear_moves_cache(self):
