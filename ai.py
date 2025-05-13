@@ -1,7 +1,7 @@
 import math
 from square import Square
 from move import Move
-#Diem cho long vong qua
+
 
 # Bảng điểm vị trí đơn giản cho từng quân (giá trị cho white, black sẽ đảo ngược)
 PAWN_TABLE = [
@@ -12,7 +12,7 @@ PAWN_TABLE = [
     [5, 5, 10, 25, 25, 10, 5, 5],
     [10, 10, 20, 30, 30, 20, 10, 10],
     [50, 50, 50, 50, 50, 50, 50, 50],
-    [100, 100, 100, 100, 100, 100, 100, 100]  # Khuyến khích phong quân
+    [100, 100, 100, 100, 100, 100, 100, 100]  # Điều chỉnh điểm đế khuyến khích AI phong quân
 ]
 KNIGHT_TABLE = [
     [-50, -40, -30, -30, -30, -30, -40, -50],
@@ -85,6 +85,8 @@ PAWN_TABLE_ENDGAME = [
     [5, 5, 5, 5, 5, 5, 5, 5],
     [0, 0, 0, 0, 0, 0, 0, 0]
 ]
+
+#Bảng điểm tàn cuộc cho các quân khác, sẽ bổ sung sau nếu thấy cần thiết
 KNIGHT_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
 BISHOP_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
 ROOK_TABLE_ENDGAME = [[0]*8 for _ in range(8)]
@@ -111,7 +113,7 @@ PIECE_TABLES_ENDGAME = {
 def get_opening_moves(move_number):
     """
     Trả về nước đi khai cuộc dựa trên số nước đã đi
-    move_number là số nước đi của cả bàn cờ (gấp đôi số nước của AI)
+    move_number là số nước đi của cả bàn cờ
     """
     # Sicilian Defense - một trong những khai cuộc mạnh nhất cho quân đen
     # Chia 2 vì move_number là số nước đi của cả bàn cờ
@@ -139,7 +141,7 @@ def evaluate_board(board, color):
     total = 0
     move_number = getattr(board, 'move_number', 0)
     
-    # Điều chỉnh logic chọn bảng điểm
+    # Điều chỉnh logic chọn bảng điểm: khai cuộc, trung cuộc, tàn cuộc
     if move_number <= 10:
         use_pos = True
         tables = PIECE_TABLES  # Vẫn sử dụng bảng điểm thường
@@ -325,7 +327,10 @@ def find_best_move(board, color, depth=3):
                 move = Move(initial, final)
                 # Kiểm tra nước đi hợp lệ
                 if board.valid_move(piece, move):
+                    print(f'AI di khai cuoc: {piece.name} tu {opening_move["initial"]} den {opening_move["final"]}')
                     return move
+                else:
+                     print('Nuoc khai cuoc khong hop le, chuyen sang minimax')
     
     # Nếu không có nước khai cuộc hoặc đã hết khai cuộc, sử dụng minimax
     best_move = None
