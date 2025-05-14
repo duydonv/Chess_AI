@@ -223,24 +223,7 @@ def generate_legal_moves(board, color):
                     # Thử đi nước cờ
                     board.make_move(piece, move)
                     # Kiểm tra vua có bị chiếu không
-                    king_in_check = False
-                    # Tìm vị trí vua
-                    king_pos = None
-                    for r in range(8):
-                        for c in range(8):
-                            p = board.squares[r][c].piece
-                            if p and p.name == 'king' and p.color == color:
-                                king_pos = (r, c)
-                    if king_pos:
-                        opponent = 'black' if color == 'white' else 'white'
-                        for r in range(8):
-                            for c in range(8):
-                                op = board.squares[r][c].piece
-                                if op and op.color == opponent:
-                                    board.calc_moves(op, r, c, bool=True)
-                                    for m in op.moves:
-                                        if m.final.row == king_pos[0] and m.final.col == king_pos[1]:
-                                            king_in_check = True
+                    king_in_check = board._is_king_in_check(color)
                     board.undo_move()
                     if not king_in_check:
                         legal_moves.append((piece, move))
@@ -266,25 +249,7 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
     moves = generate_legal_moves(board, current_color)
     if not moves:
         # Không còn nước đi, kiểm tra chiếu hết/hòa
-        # Tìm vị trí vua
-        king_pos = None
-        for r in range(8):
-            for c in range(8):
-                p = board.squares[r][c].piece
-                if p and p.name == 'king' and p.color == current_color:
-                    king_pos = (r, c)
-        in_check = False
-        if king_pos:
-            opponent = 'black' if current_color == 'white' else 'white'
-            for r in range(8):
-                for c in range(8):
-                    op = board.squares[r][c].piece
-                    if op and op.color == opponent:
-                        board.calc_moves(op, r, c, bool=True)
-                        for m in op.moves:
-                            if m.final.row == king_pos[0] and m.final.col == king_pos[1]:
-                                in_check = True
-        if in_check:
+        if board._is_king_in_check(current_color):
             return -math.inf if maximizing_player else math.inf
         else:
             return 0
