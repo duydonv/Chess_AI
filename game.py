@@ -33,6 +33,8 @@ class Game:
         self.precomputed_moves = {}  # Cache cho các nước đi đã tính trước
         # self.pro()
         self._check_cache = {}  # Cache cho kiểm tra chiếu
+        self.move_history = []  # Lưu lịch sử nước đi
+        self.move_log_scroll = 0  # Vị trí scroll log
 
     def set_hover(self, row, col):
         """
@@ -416,8 +418,51 @@ class Game:
             return
 
         # Thực hiện nước đi
+        captured_piece = self.board.squares[move.final.row][move.final.col].piece
         self.board.move(piece, move)
         self.board.set_true_en_passant(piece)
+
+        # Thêm số thứ tự nước đi vào log
+        move_number = len(self.move_history) + 1
+        piece_symbol = {
+            'king': 'K',
+            'queen': 'Q',
+            'rook': 'R',
+            'bishop': 'B',
+            'knight': 'N',
+            'pawn': 'P',
+        }[piece.name]
+        start_pos = f"{chr(move.initial.col + ord('a'))}{8 - move.initial.row}"
+        end_pos = f"{chr(move.final.col + ord('a'))}{8 - move.final.row}"
+        color_str = "White" if piece.color == "white" else "Black"
+        # Nhập thành
+        if piece.name == 'king' and abs(move.initial.col - move.final.col) == 2:
+            if move.final.col > move.initial.col:
+                move_str = "O-O"
+            else:
+                move_str = "O-O-O"
+        # Phong tốt
+        elif piece.name == 'pawn' and (move.final.row == 0 or move.final.row == 7):
+            # Giả sử luôn phong hậu
+            move_str = f"{end_pos}=Q"
+            if move.initial.col != move.final.col:
+                move_str = f"{chr(move.initial.col + ord('a'))}x{end_pos}=Q"
+        # Ăn quân
+        elif captured_piece is not None:
+            captured_name = captured_piece.__class__.__name__
+            if piece.name == 'pawn':
+                move_str = f"{chr(move.initial.col + ord('a'))}x{end_pos} "
+            else:
+                move_str = f"{piece_symbol}x{end_pos}"
+        # Nước đi thường
+        else:
+            move_str = f"{piece_symbol}{start_pos} -> {end_pos}"
+        self.move_history.append(f"{move_number}. {color_str}: {move_str}")
+        # Tự động cuộn log về đầu (log cũ nhất) mỗi khi có log mới
+        max_lines = 18
+        total_logs = len(self.move_history)
+        max_scroll = max(0, total_logs - max_lines)
+        self.move_log_scroll = max_scroll
 
         # Phát âm thanh
         self.play_sound(self.board.squares[move.final.row][move.final.col].has_piece())
@@ -480,3 +525,50 @@ class Game:
         self.last_valid_moves = None
         self.last_piece = None
         self.precomputed_moves.clear()
+
+    def show_move_history(self, surface):
+        # Vẽ nền đen cho vùng log
+        pygame.draw.rect(surface, (20, 20, 20), (SQSIZE * 8, 0, 300, HEIGHT))
+        font = pygame.font.SysFont("Roboto", 26, bold=False)
+        x = SQSIZE * 8 + 20  # Bên phải bàn cờ
+        y = 30
+        max_lines = 18
+        total_logs = len(self.move_history)
+        max_scroll = max(0, total_logs - max_lines)
+        self.move_log_scroll = max(0, min(self.move_log_scroll, max_scroll))
+
+        if total_logs <= max_lines:
+            start = 0
+            end = total_logs
+        else:
+            start = self.move_log_scroll
+            end = min(start + max_lines, total_logs)
+        logs_to_show = self.move_history[start:end]
+        for i, log in enumerate(logs_to_show):
+            # Tách số thứ tự, màu quân, nội dung nước đi để căn cột
+            try:
+                num, rest = log.split('.', 1)
+                color, move = rest.strip().split(':', 1)
+            except Exception:
+                num, color, move = '', '', log
+            label_num = font.render(num.strip(), True, (200, 200, 100))
+            label_color = font.render(color.strip(), True, (100, 200, 255) if color.strip() == 'White' else (255, 180, 100))
+            label_move = font.render(move.strip(), True, (255, 255, 255))
+            surface.blit(label_num, (x, y + i * 34))
+            surface.blit(label_color, (x + 40, y + i * 34))
+            surface.blit(label_move, (x + 120, y + i * 34))
+        # Vẽ thanh scroll nếu cần
+        if total_logs > max_lines:
+            bar_x = SQSIZE * 8 + 285
+            bar_y = 30
+            bar_width = 10
+            bar_height = HEIGHT - 2 * bar_y
+            pygame.draw.rect(surface, (60, 60, 60), (bar_x, bar_y, bar_width, bar_height), border_radius=5)
+            scroll_range = max(1, total_logs - max_lines)
+            thumb_height = max(30, min(bar_height, int(bar_height * max_lines / total_logs)))
+            if scroll_range > 0:
+                percent = self.move_log_scroll / scroll_range
+                thumb_y = bar_y + int(percent * (bar_height - thumb_height))
+            else:
+                thumb_y = bar_y
+            pygame.draw.rect(surface, (180, 180, 180), (bar_x, thumb_y, bar_width, thumb_height), border_radius=5)
