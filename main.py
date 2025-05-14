@@ -22,8 +22,63 @@ class Main:
         # Bat AI
         self.game.ai_enabled = True
         self.game.ai_color = 'black'
+    
+    def show_start_menu(self):
+        # Tải ảnh nền nếu có
+        try:
+            background = pygame.image.load('assets/images/background.png')
+            background = pygame.transform.scale(background, (WIDTH + 300, HEIGHT))
+        except:
+            background = None  # Nếu không có ảnh thì dùng nền đen
+
+        button_font = pygame.font.SysFont("roboto", 40, bold=True)
+        play_button_font = pygame.font.SysFont("roboto", 30)
+
+        play_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 130, 300, 60)
+        playFriend_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 50, 300, 60)
+        playAi_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 + 30, 300, 60)
+
+
+        while True:
+            if background:
+                self.screen.blit(background, (0, 0))
+            else:
+                self.screen.fill((0,0,0))
+
+
+            # Nút "Bắt đầu"
+            pygame.draw.rect(self.screen, (139, 174, 108), play_button_rect, border_radius=10)
+            text_surf = button_font.render("Start game", True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=play_button_rect.center)
+            self.screen.blit(text_surf, text_rect)
+
+            pygame.display.flip()
+
+            # Nút ""
+            pygame.draw.rect(self.screen, (222, 184, 135), playFriend_button_rect, border_radius=10)
+            text_surf = play_button_font.render("Play with friend", True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=playFriend_button_rect.center)
+            self.screen.blit(text_surf, text_rect)
+
+            # Nút ""
+            pygame.draw.rect(self.screen, (222, 184, 135), playAi_button_rect, border_radius=10)
+            text_surf = play_button_font.render("Play with bot", True, (255, 255, 255))
+            text_rect = text_surf.get_rect(center=playAi_button_rect.center)
+            self.screen.blit(text_surf, text_rect)
+
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if play_button_rect.collidepoint(event.pos):
+                        return  # Bắt đầu game
 
     def mainloop(self):
+        self.show_start_menu()
+
         screen = self.screen
         game = self.game
         board = game.board
