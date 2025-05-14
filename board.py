@@ -84,37 +84,24 @@ class Board:
         if cache_key in self._valid_moves_cache:
             return self._valid_moves_cache[cache_key]
 
-        # Kiểm tra nước đi có hợp lệ không
-        valid = False
-        for possible_move in piece.moves:
-            if move == possible_move:
-                valid = True
-                break
+        # Kiểm tra nước đi có trong danh sách nước đi có thể không
+        self.calc_moves(piece, move.initial.row, move.initial.col)
+        if move not in piece.moves:
+            self._valid_moves_cache[cache_key] = False
+            return False
+
+        # Thử đi nước cờ
+        initial_piece = self.squares[move.initial.row][move.initial.col].piece
+        final_piece = self.squares[move.final.row][move.final.col].piece
+        self.squares[move.final.row][move.final.col].piece = initial_piece
+        self.squares[move.initial.row][move.initial.col].piece = None
+        still_in_check = self._is_king_in_check(piece.color)
+        self.squares[move.initial.row][move.initial.col].piece = initial_piece
+        self.squares[move.final.row][move.final.col].piece = final_piece
 
         # Lưu vào cache
-        self._valid_moves_cache[cache_key] = valid
-        return valid
-    
-    def check_promotion(self, piece, final):
-        if final.row == 0 or final.row == 7:
-            self.squares[final.row][final.col].promotion = True
-
-    def castling(seft, initial, final):
-        return abs(initial.col - final.col) == 2
-    
-    # kiểm tra xem có quân địch nào chặn đường nhập thành hay không
-    def check_castling(self, color):
-        check_squares = [Square(7,2), Square(7,3), Square(7,5), Square(7,6)]
-        temp_board = copy.deepcopy(self)
-        for row in range(ROWS):
-            for col in range(COLS):
-                if temp_board.squares[row][col].has_enemy_piece(color):
-                    p = temp_board.squares[row][col].piece
-                    temp_board.calc_moves(p, row, col, bool=False)
-                    for m in p.moves:
-                        if m.final in check_squares:
-                            return True
-        return False
+        self._valid_moves_cache[cache_key] = not still_in_check
+        return not still_in_check
     
     def set_true_en_passant(self, piece):
         
@@ -128,25 +115,6 @@ class Board:
         
         piece.en_passant = True
     
-    # kiểm tra có phải nước cuối ko
-    def in_check(self, piece1, move1, piece2=None, move2=None):
-        temp_board = copy.deepcopy(self)
-        temp_piece = copy.deepcopy(piece1)
-        temp_board.move(temp_piece, move1, testing=True)
-        if(piece2 != None):
-            temp_piece = copy.deepcopy(piece2)
-            temp_board.move(temp_piece, move2, testing=True)
-
-        for row in range(ROWS):
-            for col in range(COLS):
-                if temp_board.squares[row][col].has_enemy_piece(piece1.color):
-                    p = temp_board.squares[row][col].piece
-                    temp_board.calc_moves(p, row, col, bool=False)
-                    for m in p.moves:
-                        if isinstance(m.final.piece, King):
-                            return True
-        
-        return False
 
     def calc_moves(self, piece, row, col, bool=False):
         piece.clear_moves()
@@ -301,13 +269,16 @@ class Board:
 
     def _is_king_in_check(self, color):
         # Tìm vị trí vua
+        king_pos = None
         for row in range(8):
             for col in range(8):
                 piece = self.squares[row][col].piece
                 if piece and isinstance(piece, King) and piece.color == color:
                     king_pos = (row, col)
                     break
-        else:
+            if king_pos:
+                break
+        if not king_pos:
             return False
         # Kiểm tra có quân đối phương nào ăn được vua không
         opponent = 'black' if color == 'white' else 'white'
@@ -385,6 +356,10 @@ class Board:
         self._check_cache.clear()
 
     def make_move(self, piece, move):
+        """
+        Lưu trạng thái và thực hiện nước đi
+        """
+        # 1. Lưu trạng thái trước khi đi
         initial = move.initial
         final = move.final
         moved_piece = piece
@@ -393,14 +368,16 @@ class Board:
         move_number = self.move_number
         moved_piece_moved = piece.moved
         captured_piece_moved = captured_piece.moved if captured_piece else None
-        # Lưu trạng thái en passant cho tất cả tốt
+
+        # 2. Lưu trạng thái en passant
         en_passant_state = {}
         for row in range(8):
             for col in range(8):
                 p = self.squares[row][col].piece
                 if p and hasattr(p, 'en_passant'):
                     en_passant_state[(row, col)] = p.en_passant
-        # Nếu là nhập thành, lưu thông tin cần thiết
+
+        # 3. Lưu thông tin nhập thành nếu có
         castle_info = None
         if isinstance(piece, King) and abs(final.col - initial.col) == 2:
             row = initial.row
@@ -424,46 +401,98 @@ class Board:
                 'king_final': (final.row, final.col),
                 'king_moved': king_moved
             }
-        state = MoveState(initial, final, moved_piece, captured_piece, last_move, move_number, en_passant_state, moved_piece_moved, captured_piece_moved, castle_info)
+
+        # 4. Tạo và lưu trạng thái
+        state = MoveState(
+            initial, final, moved_piece, captured_piece,
+            last_move, move_number, en_passant_state,
+            moved_piece_moved, captured_piece_moved,
+            castle_info
+        )
         self.move_stack.append(state)
-        # Thực hiện nước đi như cũ
+
+        # 5. Thực hiện nước đi
         self.move(piece, move)
 
     def undo_move(self):
+        """
+        Khôi phục trạng thái trước nước đi
+        """
         if not self.move_stack:
             return
+
+        # 1. Lấy trạng thái cần khôi phục
         state = self.move_stack.pop()
-        # Nếu là undo nhập thành, trả xe và vua về vị trí cũ và khôi phục trạng thái moved
+
+        # 2. Khôi phục nhập thành nếu có
         if state.castle_info is not None:
             info = state.castle_info
             row = info['row']
-            # Khôi phục xe về vị trí cũ và trạng thái moved
+            # Khôi phục xe
             self.squares[row][info['rook_from_col']].piece = info['rook_piece']
             self.squares[row][info['rook_to_col']].piece = None
             if info['rook_piece']:
                 info['rook_piece'].moved = info['rook_moved']
-            # Khôi phục vua về vị trí cũ và trạng thái moved
+            # Khôi phục vua
             self.squares[info['king_initial'][0]][info['king_initial'][1]].piece = info['king_piece']
             self.squares[info['king_final'][0]][info['king_final'][1]].piece = None
             if info['king_piece']:
                 info['king_piece'].moved = info['king_moved']
         else:
-            # Khôi phục trạng thái quân cờ bình thường
+            # 3. Khôi phục quân cờ bình thường
             self.squares[state.initial.row][state.initial.col].piece = state.moved_piece
             self.squares[state.final.row][state.final.col].piece = state.captured_piece
             # Khôi phục trạng thái moved
             state.moved_piece.moved = state.moved_piece_moved
             if state.captured_piece:
                 state.captured_piece.moved = state.captured_piece_moved
-        # Khôi phục trạng thái en passant cho tất cả tốt
+
+        # 4. Khôi phục trạng thái en passant
         for (row, col), en_passant in state.en_passant_state.items():
             p = self.squares[row][col].piece
             if p and hasattr(p, 'en_passant'):
                 p.en_passant = en_passant
-        # Khôi phục last_move, move_number
+
+        # 5. Khôi phục last_move và move_number
         self.last_move = state.last_move
         self.move_number = state.move_number
-        # Xóa cache
-        self._move_cache.clear()
-        self._valid_moves_cache.clear()
-        self._check_cache.clear()
+
+        # 6. Xóa cache
+        self.clear_moves_cache()
+
+    def get_legal_moves(self, color):
+        """
+        Lấy tất cả nước đi hợp lệ cho một bên
+        """
+        legal_moves = []
+        for row in range(8):
+            for col in range(8):
+                piece = self.squares[row][col].piece
+                if piece and piece.color == color:
+                    self.calc_moves(piece, row, col)
+                    for move in piece.moves:
+                        if self.valid_move(piece, move):
+                            legal_moves.append((piece, move))
+        return legal_moves
+
+    def is_checkmate(self, color):
+        """
+        Kiểm tra có bị chiếu hết không
+        """
+        if not self._is_king_in_check(color):
+            return False
+
+        # Kiểm tra xem có nước đi nào để thoát chiếu không
+        legal_moves = self.get_legal_moves(color)
+        return len(legal_moves) == 0
+
+    def is_stalemate(self, color):
+        """
+        Kiểm tra có bị hòa không
+        """
+        if self._is_king_in_check(color):
+            return False
+
+        # Kiểm tra xem có nước đi hợp lệ nào không
+        legal_moves = self.get_legal_moves(color)
+        return len(legal_moves) == 0
