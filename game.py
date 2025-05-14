@@ -31,7 +31,7 @@ class Game:
         self.last_valid_moves = None  # Cache cho nước đi hợp lệ cuối cùng
         self.last_piece = None  # Cache cho quân cờ cuối cùng
         self.precomputed_moves = {}  # Cache cho các nước đi đã tính trước
-        self.pro()
+        # self.pro()
         self._check_cache = {}  # Cache cho kiểm tra chiếu
 
     def set_hover(self, row, col):
@@ -123,41 +123,42 @@ class Game:
             return a >= 4
     
     # tạo quân phong cấp
-    def pro(self):
-        for col in range(COLS):
-            self.board.squares[0][col].promotion_piece = Queen("white")
-            self.board.squares[1][col].promotion_piece = Rook("white")
-            self.board.squares[2][col].promotion_piece = Knight("white")
-            self.board.squares[3][col].promotion_piece = Bishop("white")
+    # def pro(self):
+    #     for col in range(COLS):
+    #         self.board.squares[0][col].promotion_piece = Queen("white")
+    #         self.board.squares[1][col].promotion_piece = Rook("white")
+    #         self.board.squares[2][col].promotion_piece = Knight("white")
+    #         self.board.squares[3][col].promotion_piece = Bishop("white")
 
-        for col in range(COLS):
-            self.board.squares[7][col].promotion_piece = Queen("black")
-            self.board.squares[6][col].promotion_piece = Rook("black")
-            self.board.squares[5][col].promotion_piece = Knight("black")
-            self.board.squares[4][col].promotion_piece = Bishop("black")
+    #     for col in range(COLS):
+    #         self.board.squares[7][col].promotion_piece = Queen("black")
+    #         self.board.squares[6][col].promotion_piece = Rook("black")
+    #         self.board.squares[5][col].promotion_piece = Knight("black")
+    #         self.board.squares[4][col].promotion_piece = Bishop("black")
 
-    def show_pieces(self, surface):
+    def show_pieces(self, surface): #Update
         for row in range(ROWS):
             for col in range(COLS):
-                if self.promotion_col and col == self.promotion_col and self.check_row_promotion(row) and self.board.squares[row][col].has_promotion_piece():
-                    piece = self.board.squares[row][col].promotion_piece
+                square = self.board.squares[row][col]
 
-                    if piece is not self.dragger.piece:
-                        piece.set_texture(size=70)  # Tăng kích thước quân cờ
-                        img = pygame.image.load(piece.texture)
-                        img_center = col * SQSIZE + SQSIZE // 2, row * SQSIZE + SQSIZE // 2
-                        piece.texture_rect = img.get_rect(center=img_center)
-                        surface.blit(img, piece.texture_rect)
-                
-                elif self.board.squares[row][col].has_piece():
-                    piece = self.board.squares[row][col].piece
+                # Lấy quân cờ thực tế (ưu tiên promotion nếu có)
+                piece = square.get_piece()
 
-                    if piece is not self.dragger.piece:
-                        piece.set_texture(size=70)  # Tăng kích thước quân cờ
-                        img = pygame.image.load(piece.texture)
-                        img_center = col * SQSIZE + SQSIZE // 2, row * SQSIZE + SQSIZE // 2
-                        piece.texture_rect = img.get_rect(center=img_center)
-                        surface.blit(img, piece.texture_rect)
+                # Bỏ qua nếu không có quân hoặc đang kéo quân đó
+                if not piece or piece is self.dragger.piece:
+                    continue
+
+                # Nếu đang ở giai đoạn chọn quân phong cấp, chỉ hiển thị các ô chọn
+                if self.promotion_col is not False and col == self.promotion_col and self.check_row_promotion(row):
+                    piece = square.promotion_piece
+                    if not piece:
+                        continue
+
+                piece.set_texture(size=70)
+                img = pygame.image.load(piece.texture)
+                img_center = col * SQSIZE + SQSIZE // 2, row * SQSIZE + SQSIZE // 2
+                piece.texture_rect = img.get_rect(center=img_center)
+                surface.blit(img, piece.texture_rect)
                         
 
     def get_valid_moves(self, piece, row, col):
@@ -413,67 +414,62 @@ class Game:
         if not any(m == move for p, m in legal_moves):
             print("Nuoc di khong hop le!")
             return
+
         # Thực hiện nước đi
         self.board.move(piece, move)
         self.board.set_true_en_passant(piece)
+
         # Phát âm thanh
         self.play_sound(self.board.squares[move.final.row][move.final.col].has_piece())
+
         # Xóa cache
         self.clear_moves_cache()
         self.precomputed_moves.clear()
-        # Kiểm tra phong cấp
+
+        # ===============================
+        # 🟡 Xử lý phong cấp nếu là tốt
+        # ===============================
         if isinstance(piece, Pawn) and (move.final.row == 0 or move.final.row == 7):
-            self.check_promotion()
-            if self.promotion_col is not False:
-                self.show_choose_promotion(self.screen)
-                pygame.display.update()
-                waiting = True
-                while waiting:
-                    for event in pygame.event.get():
-                        if event.type == pygame.QUIT:
-                            pygame.quit()
-                            sys.exit()
-                        if event.type == pygame.MOUSEBUTTONDOWN:
-                            mouse_x, mouse_y = event.pos
-                            col = mouse_x // SQSIZE
-                            row = mouse_y // SQSIZE
-                            if col == self.promotion_col:
-                                if self.promotion_color == "white":
-                                    if row in [0, 1, 2, 3]:
-                                        if row == 0:
-                                            new_piece = Queen(piece.color)
-                                        elif row == 1:
-                                            new_piece = Rook(piece.color)
-                                        elif row == 2:
-                                            new_piece = Bishop(piece.color)
-                                        elif row == 3:
-                                            new_piece = Knight(piece.color)
-                                        self.board.squares[move.final.row][move.final.col].piece = new_piece
-                                        waiting = False
-                                else:
-                                    if row in [7, 6, 5, 4]:
-                                        if row == 7:
-                                            new_piece = Queen(piece.color)
-                                        elif row == 6:
-                                            new_piece = Rook(piece.color)
-                                        elif row == 5:
-                                            new_piece = Bishop(piece.color)
-                                        elif row == 4:
-                                            new_piece = Knight(piece.color)
-                                        self.board.squares[move.final.row][move.final.col].piece = new_piece
-                                        waiting = False
-                # Reset trạng thái phong quân
-                self.promotion_col = False
-                self.promotion_color = False
-        # Kiểm tra chiếu hết/hòa
+            self.show_choose_promotion(self.screen)
+            pygame.display.update()
+
+            # Vị trí phong cấp
+            col = move.final.col
+            waiting = True
+            while waiting:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        mouse_x, mouse_y = event.pos
+                        clicked_col = mouse_x // SQSIZE
+                        clicked_row = mouse_y // SQSIZE
+
+                        # Chỉ xử lý nếu click đúng cột đang phong cấp
+                        if clicked_col == col:
+                            selected_index = clicked_row if piece.color == 'white' else 7 - clicked_row
+                            if 0 <= selected_index <= 3:
+                                promotion_choices = [Queen, Rook, Bishop, Knight]
+                                new_piece_class = promotion_choices[selected_index]
+                                new_piece = new_piece_class(piece.color)
+
+                                square = self.board.squares[move.final.row][move.final.col]
+                                square.piece = None
+                                square.promotion_piece = new_piece
+                                waiting = False
+
+        # ===============================
+        # Chuyển lượt / Kiểm tra kết thúc game
+        # ===============================
         next_color = 'white' if piece.color == 'black' else 'black'
         legal_moves_next = self.get_all_legal_moves(next_color)
         if not legal_moves_next:
             if self.is_check(next_color):
-                print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
+                print(f"{piece.color.capitalize()} thắng! {next_color.capitalize()} bị chiếu hết!")
                 self.game_over = True
             else:
-                print("Hoa! Khong con nuoc di hop le.")
+                print("Hòa! Không còn nước đi hợp lệ.")
                 self.game_over = True
 
     def clear_moves_cache(self):
