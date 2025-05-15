@@ -406,6 +406,11 @@ class Game:
         Xử lý phong cấp tốt
         """
         self.show_choose_promotion(self.screen)
+        # 1) Đánh dấu cột + màu để show menu
+        self.promotion_col = move.final.col
+        self.promotion_color = piece.color
+        # 2) Hiển thị menu chọn
+        self.show_choose_promotion(self.screen)
         pygame.display.update()
 
         col = move.final.col
@@ -430,7 +435,12 @@ class Game:
                             square = self.board.squares[move.final.row][move.final.col]
                             square.piece = None
                             square.promotion_piece = new_piece
+                            # Gán trực tiếp quân mới vào ô
+                            square.piece = new_piece
+                            square.promotion_piece = None
                             waiting = False
+        self.promotion_col   = False
+        self.promotion_color = False
 
     def clear_moves_cache(self):
         """
