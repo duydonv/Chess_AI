@@ -5,11 +5,9 @@ class Piece:
     # Cache cho texture
     _texture_cache = {}
     
-    def __init__(self, name, color, value, texture = None, texture_react = None):
+    def __init__(self, name, color, texture = None, texture_react = None):
         self.name = name
         self.color = color
-        value_sign = 1 if color == "white" else -1
-        self.value = value * value_sign
         self.moves = []
         self.moved = False
         self.texture = texture
@@ -41,31 +39,29 @@ class Pawn(Piece):
     def __init__(self, color):
         self.dir = -1 if color == 'white' else 1
         self.en_passant = False
-        super().__init__('pawn', color, 1.0)
+        super().__init__('pawn', color)
 # định nghĩa các quân mã
 class Knight(Piece):
 
     def __init__(self, color):
-        super().__init__('knight', color, 3.0)
+        super().__init__('knight', color)
 # định nghĩa các quân tượng
 class Bishop(Piece):
     
     def __init__(self, color):
-        super().__init__('bishop', color, 3.0001)
+        super().__init__('bishop', color)
 # định nghĩa các quân xe
 class Rook(Piece):
     
     def __init__(self, color):
-        super().__init__('rook', color, 5.0)
+        super().__init__('rook', color)
 # định nghĩa các quân hậu
 class Queen(Piece):
     
     def __init__(self, color):
-        super().__init__('queen', color, 9.0)
+        super().__init__('queen', color)
 # định nghĩa các quân vua
 class King(Piece):
     
     def __init__(self, color):
-        self.left_rook = None
-        self.right_rook = None
-        super().__init__('king', color, 1000.0)
+        super().__init__('king', color)

@@ -79,22 +79,6 @@ class Game:
             y = ROWS * SQSIZE - 22
             surface.blit(label, (x, y))
 
-    def check_promotion(self):
-        self.promotion_col = False
-        self.promotion_color = False
-
-        for col in range(COLS):
-            if self.board.squares[0][col].has_piece():
-                piece = self.board.squares[0][col].piece
-                if isinstance(piece, Pawn):
-                    self.promotion_col = col
-                    self.promotion_color = "white"
-            if self.board.squares[7][col].has_piece():
-                piece = self.board.squares[7][col].piece
-                if isinstance(piece, Pawn):
-                    self.promotion_col = col
-                    self.promotion_color = "black"
-
     def show_choose_promotion(self, surface):
         # Chỉ vẽ 4 ô chọn quân ở hàng cuối (hoặc đầu) của cột phong quân
         if self.promotion_col is False or self.promotion_color is False:
@@ -141,26 +125,13 @@ class Game:
     def show_pieces(self, surface): #Update
         for row in range(ROWS):
             for col in range(COLS):
-                square = self.board.squares[row][col]
-
-                # Lấy quân cờ thực tế (ưu tiên promotion nếu có)
-                piece = square.get_piece()
-
-                # Bỏ qua nếu không có quân hoặc đang kéo quân đó
-                if not piece or piece is self.dragger.piece:
-                    continue
-
-                # Nếu đang ở giai đoạn chọn quân phong cấp, chỉ hiển thị các ô chọn
-                if self.promotion_col is not False and col == self.promotion_col and self.check_row_promotion(row):
-                    piece = square.promotion_piece
-                    if not piece:
-                        continue
-
-                piece.set_texture(size=70)
-                img = pygame.image.load(piece.texture)
-                img_center = col * SQSIZE + SQSIZE // 2, row * SQSIZE + SQSIZE // 2
-                piece.texture_rect = img.get_rect(center=img_center)
-                surface.blit(img, piece.texture_rect)
+                piece = self.board.squares[row][col].piece
+                if piece:
+                    piece.set_texture(size=70)
+                    img = pygame.image.load(piece.texture)
+                    img_center = col * SQSIZE + SQSIZE // 2, row * SQSIZE + SQSIZE // 2
+                    piece.texture_rect = img.get_rect(center=img_center)
+                    surface.blit(img, piece.texture_rect)
                         
 
     def get_valid_moves(self, piece, row, col):
@@ -319,11 +290,6 @@ class Game:
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
         """
-        # 1. Kiểm tra nước đi hợp lệ
-        if not self.board.valid_move(piece, move):
-            print("Nuoc di khong hop le!")
-            return False
-
         # 2. Lưu trạng thái trước khi đi
         captured_piece = self.board.squares[move.final.row][move.final.col].piece
         
@@ -343,7 +309,7 @@ class Game:
 
         # 7. Xử lý phong cấp nếu là tốt
         if isinstance(piece, Pawn) and (move.final.row == 0 or move.final.row == 7):
-            self._handle_promotion(piece, move)
+            self._handle_promotion(piece.color, move.final.col, move.final.row)
 
         # 8. Kiểm tra kết thúc game
         next_color = 'white' if piece.color == 'black' else 'black'
@@ -401,16 +367,28 @@ class Game:
         max_scroll = max(0, total_logs - max_lines)
         self.move_log_scroll = max_scroll
 
-    def _handle_promotion(self, piece, move):
+    def _handle_promotion(self, color, col, row):
         """
         Xử lý phong cấp tốt
         """
+        self.promotion_col = col
+        self.promotion_color = color
+        self.show_bg(self.screen)
+        self.show_last_move(self.screen)
+        self.show_pieces(self.screen)
+        self.show_move_history(self.screen)
         self.show_choose_promotion(self.screen)
-        pygame.display.update()
+        pygame.display.flip()
 
-        col = move.final.col
         waiting = True
         while waiting:
+            self.show_bg(self.screen)
+            self.show_last_move(self.screen)
+            self.show_pieces(self.screen)
+            self.show_move_history(self.screen)
+            self.show_choose_promotion(self.screen)
+            pygame.display.flip()
+            
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
@@ -421,15 +399,13 @@ class Game:
                     clicked_row = mouse_y // SQSIZE
 
                     if clicked_col == col:
-                        selected_index = clicked_row if piece.color == 'white' else 7 - clicked_row
+                        selected_index = clicked_row if color == 'white' else 7 - clicked_row
                         if 0 <= selected_index <= 3:
                             promotion_choices = [Queen, Rook, Bishop, Knight]
                             new_piece_class = promotion_choices[selected_index]
-                            new_piece = new_piece_class(piece.color)
+                            new_piece = new_piece_class(color)
 
-                            square = self.board.squares[move.final.row][move.final.col]
-                            square.piece = None
-                            square.promotion_piece = new_piece
+                            self.board.squares[row][col].piece = new_piece
                             waiting = False
 
     def clear_moves_cache(self):
