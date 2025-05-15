@@ -171,7 +171,7 @@ class Game:
         if cache_key in self.valid_moves_cache:
             return self.valid_moves_cache[cache_key]
 
-        self.board.calc_moves(piece, row, col, bool=True)
+        self.board.calc_moves(piece, row, col, checking_checks=False)
         moves = piece.moves
         color = piece.color
         valid_moves = []
@@ -301,7 +301,7 @@ class Game:
             for col in range(COLS):
                 piece = self.board.squares[row][col].piece
                 if piece and piece.color == color:
-                    self.board.calc_moves(piece, row, col, bool=True)
+                    self.board.calc_moves(piece, row, col, checking_checks=False)
                     for move in piece.moves:
                         # Thử đi nước cờ
                         initial_piece = self.board.squares[move.initial.row][move.initial.col].piece

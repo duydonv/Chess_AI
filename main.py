@@ -51,7 +51,7 @@ class Main:
             text_rect = text_surf.get_rect(center=play_button_rect.center)
             self.screen.blit(text_surf, text_rect)
 
-            pygame.display.flip()
+            # pygame.display.flip()
 
             # Nút ""
             pygame.draw.rect(self.screen, (222, 184, 135), playFriend_button_rect, border_radius=10)

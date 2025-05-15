@@ -116,11 +116,11 @@ class Board:
         piece.en_passant = True
     
 
-    def calc_moves(self, piece, row, col, bool=False):
+    def calc_moves(self, piece, row, col, checking_checks=False ):
         piece.clear_moves()
         
         # Kiểm tra cache
-        cache_key = (piece, row, col, self.get_board_state())
+        cache_key = (piece, row, col, checking_checks, self.get_board_state())
         if cache_key in self._move_cache:
             piece.moves = self._move_cache[cache_key]
             return piece.moves
@@ -137,7 +137,7 @@ class Board:
         elif piece.name == 'queen':
             self._calc_queen_moves(piece, row, col)
         elif piece.name == 'king':
-            self._calc_king_moves(piece, row, col)
+            self._calc_king_moves(piece, row, col, checking_checks)
 
         # Lưu vào cache
         self._move_cache[cache_key] = piece.moves
@@ -210,7 +210,7 @@ class Board:
         ]
         self._calc_sliding_moves(piece, row, col, directions)
 
-    def _calc_king_moves(self, piece, row, col):
+    def _calc_king_moves(self, piece, row, col,  checking_checks=False):
         # Nước đi thường của vua
         directions = [
             (-1, -1), (-1, 0), (-1, 1),
@@ -222,12 +222,10 @@ class Board:
             if 0 <= new_row < 8 and 0 <= new_col < 8:
                 if not self.squares[new_row][new_col].has_team_piece(piece.color):
                     piece.add_move(Move(Square(row, col), Square(new_row, new_col)))
-        # Nhập thành
-        if not piece.moved:
-            # Nhập thành gần (king-side)
+        # Chỉ thêm nước nhập thành khi không đang "checking_checks"
+        if not checking_checks and not piece.moved:
             if self._can_castle(piece, row, col, king_side=True):
                 piece.add_move(Move(Square(row, col), Square(row, col+2)))
-            # Nhập thành xa (queen-side)
             if self._can_castle(piece, row, col, king_side=False):
                 piece.add_move(Move(Square(row, col), Square(row, col-2)))
 
@@ -286,7 +284,7 @@ class Board:
             for col in range(8):
                 piece = self.squares[row][col].piece
                 if piece and piece.color == opponent:
-                    self.calc_moves(piece, row, col)
+                    self.calc_moves(piece, row, col, checking_checks=True )
                     for move in piece.moves:
                         if move.final.row == king_pos[0] and move.final.col == king_pos[1]:
                             return True
