@@ -6,6 +6,7 @@ from const import *
 from game import Game
 from square import Square
 from move import Move
+from settings import Settings
 
 class Main:
 
@@ -22,6 +23,22 @@ class Main:
         # Bat AI
         self.game.ai_enabled = True
         self.game.ai_color = 'black'
+        # Thêm settings
+        self.settings = Settings()
+        self.game.settings = self.settings
+        self.should_restart = False
+
+    def reset_game(self):
+        self.game = Game()
+        self.game.screen = self.screen
+        self.game.ai_enabled = True
+        self.game.ai_color = 'black'
+        self.settings = Settings()
+        self.game.settings = self.settings
+        self.waiting_for_ai = False
+        self.last_move_time = 0
+        self.should_restart = False
+
     def show_start_menu(self):
         # Tải ảnh nền nếu có
         try:
@@ -51,7 +68,7 @@ class Main:
             text_rect = text_surf.get_rect(center=play_button_rect.center)
             self.screen.blit(text_surf, text_rect)
 
-            pygame.display.flip()
+           # pygame.display.flip()
 
             # Nút ""
             pygame.draw.rect(self.screen, (222, 184, 135), playFriend_button_rect, border_radius=10)
@@ -133,6 +150,25 @@ class Main:
                             game.move_log_scroll = scroll_range
 
                 elif event.type == pygame.MOUSEBUTTONDOWN:
+                    result = self.settings.handle_click(event.pos)
+                    if result == 'surrender_yes':
+                        self.show_start_menu()
+                        self.reset_game()
+                        # Cập nhật lại các biến tham chiếu trong mainloop
+                        game = self.game
+                        board = game.board
+                        dragger = game.dragger
+                        continue
+                    if result == 'restart_game':
+                        self.reset_game()
+                        # Cập nhật lại các biến tham chiếu trong mainloop
+                        game = self.game
+                        board = game.board
+                        dragger = game.dragger
+                        continue
+                    if result:
+                        continue
+                        
                     # Chỉ xử lý nếu click trong bàn cờ
                     if event.pos[0] < WIDTH:
                         if not dragger.dragging and game.next_player == 'white':
@@ -177,6 +213,12 @@ class Main:
                         if board.valid_move(dragger.piece, move):
                             # Thực hiện nước đi
                             game.move(dragger.piece, move)
+                             # Phát âm thanh nếu đang bật
+                            if self.settings.sound_enabled:
+                                if board.squares[released_row][released_col].has_enemy_piece(game.next_player):
+                                    game.config.capture_sound.play()
+                                else:
+                                    game.config.move_sound.play()
                             self.last_move_time = current_time
                             # Vẽ lại giao diện ngay lập tức
                             game.show_bg(screen)
@@ -211,9 +253,15 @@ class Main:
             game.show_moves(screen)
             game.show_pieces(screen)
             game.show_move_history(screen)
+            self.settings.draw(screen)
             if dragger.dragging and dragger.piece is not None:
                 dragger.update_blit(screen)
             pygame.display.update()
+
+            if self.should_restart:
+                break
+
+
 
 main = Main()
 main.mainloop()
