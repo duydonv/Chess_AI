@@ -22,7 +22,6 @@ class Main:
         # Bat AI
         self.game.ai_enabled = True
         self.game.ai_color = 'black'
-    
     def show_start_menu(self):
         # Tải ảnh nền nếu có
         try:
@@ -78,7 +77,6 @@ class Main:
 
     def mainloop(self):
         self.show_start_menu()
-
         screen = self.screen
         game = self.game
         board = game.board
