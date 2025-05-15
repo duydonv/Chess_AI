@@ -126,6 +126,8 @@ class Game:
         for row in range(ROWS):
             for col in range(COLS):
                 piece = self.board.squares[row][col].piece
+                if not piece or piece is self.dragger.piece:
+                    continue
                 if piece:
                     piece.set_texture(size=70)
                     img = pygame.image.load(piece.texture)
