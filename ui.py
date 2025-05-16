@@ -6,7 +6,7 @@ class UI:
     def __init__(self):
         pass
         
-    def show_start_menu(self, screen):
+    def show_start(self, screen):
         # Tải ảnh nền nếu có
         try:
             background = pygame.image.load('assets/images/background.png')
@@ -15,11 +15,8 @@ class UI:
             background = None  # Nếu không có ảnh thì dùng nền đen
 
         button_font = pygame.font.SysFont("roboto", 40, bold=True)
-        play_button_font = pygame.font.SysFont("roboto", 30)
 
-        play_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 130, 300, 60)
-        playFriend_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 50, 300, 60)
-        playAi_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 + 30, 300, 60)
+        play_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2, 300, 60)
 
         while True:
             if background:
@@ -33,6 +30,42 @@ class UI:
             text_rect = text_surf.get_rect(center=play_button_rect.center)
             screen.blit(text_surf, text_rect)
 
+            pygame.display.flip()
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    if play_button_rect.collidepoint(event.pos):
+                        return True
+    def show_start_menu(self, screen):
+        # Tải ảnh nền nếu có
+        try:
+            background = pygame.image.load('assets/images/background.png')
+            background = pygame.transform.scale(background, (WIDTH + 300, HEIGHT))
+        except:
+            background = None  # Nếu không có ảnh thì dùng nền đen
+
+        play_button_font = pygame.font.SysFont("roboto", 30)
+
+        playFriend_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 50, 300, 60)
+        playAi_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 + 30, 300, 60)
+
+        # Dropdown cho độ khó AI
+        dropdown_rects = [
+            pygame.Rect(WIDTH - 80, HEIGHT//2 + 100 + i*50, 300, 45) for i in range(3)
+        ]
+        dropdown_labels = ["Easy", "Medium", "Hard"]
+
+        show_ai_dropdown = False
+
+        while True:
+            if background:
+                screen.blit(background, (0, 0))
+            else:
+                screen.fill((0, 0, 0))
+
             # Nút "Play with friend"
             pygame.draw.rect(screen, (222, 184, 135), playFriend_button_rect, border_radius=10)
             text_surf = play_button_font.render("Play with friend", True, (255, 255, 255))
@@ -45,6 +78,14 @@ class UI:
             text_rect = text_surf.get_rect(center=playAi_button_rect.center)
             screen.blit(text_surf, text_rect)
 
+            # Vẽ dropdown nếu đang bật
+            if show_ai_dropdown:
+                for i, rect in enumerate(dropdown_rects):
+                    pygame.draw.rect(screen, (100, 100, 200), rect, border_radius=8)
+                    label = play_button_font.render(dropdown_labels[i], True, (255, 255, 255))
+                    label_rect = label.get_rect(center=rect.center)
+                    screen.blit(label, label_rect)
+
             pygame.display.flip()
 
             for event in pygame.event.get():
@@ -52,12 +93,16 @@ class UI:
                     pygame.quit()
                     sys.exit()
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if play_button_rect.collidepoint(event.pos):
-                        return "start"
-                    elif playFriend_button_rect.collidepoint(event.pos):
+                    if playFriend_button_rect.collidepoint(event.pos):
                         return "friend"
                     elif playAi_button_rect.collidepoint(event.pos):
-                        return "bot"
+                        # Toggle dropdown hiện/ẩn
+                        show_ai_dropdown = not show_ai_dropdown
+                    elif show_ai_dropdown:
+                        for i, rect in enumerate(dropdown_rects):
+                            if rect.collidepoint(event.pos):
+                                # Trả về độ khó tương ứng
+                                return f"bot_{['easy','medium','hard'][i]}"
     def show_game_result(self, screen, result_text):
         # Màu và font
         popup_bg = (255, 255, 255)
@@ -68,8 +113,8 @@ class UI:
         button_font = pygame.font.SysFont("arial", 22)
 
         # Kích thước popup
-        popup_width = 250
-        popup_height = 130
+        popup_width = 350
+        popup_height = 150
         popup_x = (WIDTH - popup_width) // 2
         popup_y = (HEIGHT - popup_height) // 2
         popup_rect = pygame.Rect(popup_x, popup_y, popup_width, popup_height)
@@ -117,5 +162,5 @@ class UI:
                     exit()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if button_rect.collidepoint(event.pos):
-                        waiting = False
+                        return True
 

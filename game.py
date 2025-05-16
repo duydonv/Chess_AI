@@ -233,11 +233,15 @@ class Game:
         if self.board.is_checkmate(color):
             self.game_over = True
             winner = 'Black' if color == 'white' else 'White'
-            return f"{winner} wins! Checkmate!"
+            message = f"{winner} wins! Checkmate!"
+            print(message)  # 👈 In ra console
+            return message
 
         elif self.board.is_stalemate(color):
             self.game_over = True
-            return "Game over! Stalemate!"
+            message = "Game over! Stalemate!"
+            print(message)  # 👈 In ra console
+            return message
 
         return None
 

@@ -28,6 +28,7 @@ class Board:
         self.last_move = None
         self.move_number = 0  # Thêm biến đếm số nước đi
         self._create()
+        #self.setup_king_vs_full() # Dùng để test bàn cờ gỡ
         self._move_cache = {}  # Cache cho các nước đi
         self._valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
         self._check_cache = {}  # Cache cho trạng thái chiếu
@@ -497,3 +498,21 @@ class Board:
         # Kiểm tra xem có nước đi hợp lệ nào không
         legal_moves = self.get_legal_moves(color)
         return len(legal_moves) == 0
+    def setup_king_vs_full(self):
+        # Xóa toàn bộ quân cờ hiện tại
+        for row in range(ROWS):
+            for col in range(COLS):
+                self.squares[row][col].piece = None
+
+        # Trắng: chỉ còn vua
+        self.squares[0][4] = Square(0, 4, King('black'))
+
+        # Đặt quân trắng
+        self.squares[7][0] = Square(7, 0, Rook('white'))
+        self.squares[7][1] = Square(7, 1, Knight('white'))
+        self.squares[7][2] = Square(7, 2, Bishop('white'))
+        self.squares[7][3] = Square(7, 3, Queen('white'))
+        self.squares[7][4] = Square(7, 4, King('white'))
+        self.squares[7][5] = Square(7, 5, Bishop('white'))
+        self.squares[7][6] = Square(7, 6, Knight('white'))
+        self.squares[7][7] = Square(7, 7, Rook('white'))

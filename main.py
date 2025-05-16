@@ -23,20 +23,29 @@ class Main:
         self.AI_DELAY = 0.5  # Delay 
         # Hiện menu
         self.ui = UI()
-        mode = self.ui.show_start_menu(self.screen)
+        choose = self.ui.show_start(self.screen)
+        if (choose):
 
-        # Xử lý theo lựa chọn
-        if mode == "bot":
-            self.game.ai_enabled = True
-            self.game.ai_color = 'black'
-        elif mode == "friend":
-            self.game.ai_enabled = False
-        elif mode == "start":
-            self.game.ai_enabled = True
-            self.game.ai_color = 'black'
-        else:
-            pygame.quit()
-            sys.exit()
+            mode = self.ui.show_start_menu(self.screen)
+
+            # Xử lý theo lựa chọn
+            if mode == "bot_easy":
+                self.game.ai_enabled = True
+                self.game.ai_color = 'black'
+            elif mode == "bot_medium":
+                self.game.ai_enabled = True
+                self.game.ai_color = 'black'
+            elif mode == "bot_hard":
+                self.game.ai_enabled = True
+                self.game.ai_color = 'black'
+            elif mode == "friend":
+                self.game.ai_enabled = False
+            elif mode == "start":
+                self.game.ai_enabled = True
+                self.game.ai_color = 'black'
+            else:
+                pygame.quit()
+                sys.exit()
         # Thêm settings
         self.settings = Settings()
         self.game.settings = self.settings
@@ -84,8 +93,9 @@ class Main:
                 game.next_player = 'white'
                 result = game.check_game_over()
                 if result:
-                    self.show_game_result(screen, result)
-                    continue
+                    gameOver = self.ui.show_game_result(screen, result)
+                    if gameOver:
+                        self.reset_game()
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -226,8 +236,10 @@ class Main:
                             #------------------
                             result = game.check_game_over()
                             if result:
-                                self.ui.show_game_result(screen, result)
-                                continue
+                                gameOver = self.ui.show_game_result(screen, result)
+                                if gameOver:
+                                    self.reset_game()
+        
                         dragger.undrag_piece()
                     drag_scroll = False
 
