@@ -276,7 +276,7 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
                 break
         return min_eval
 
-def find_best_move(board, color, depth=3):
+def find_best_move(board, color, depth=1):
     # Thêm logic khai cuộc
     if color == 'black' and board.move_number < 12:  # 6 nước của AI = 12 nước của cả bàn cờ
         opening_move = get_opening_moves(board.move_number + 1)
