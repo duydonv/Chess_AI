@@ -487,14 +487,43 @@ class Board:
         # Kiểm tra xem có nước đi nào để thoát chiếu không
         legal_moves = self.get_legal_moves(color)
         return len(legal_moves) == 0
+    def insufficient_material(self):
+        pieces = []
+        for row in self.squares:
+            for square in row:
+                if square.piece:
+                    pieces.append(square.piece)
 
+        # Chỉ còn vua
+        if len(pieces) == 2:
+            return True
+
+        # Vua + mã hoặc vua + tượng vs vua
+        if len(pieces) == 3:
+            names = [p.name for p in pieces]
+            if names.count("king") == 2 and ("knight" in names or "bishop" in names):
+                return True
+
+        # Vua + tượng vs vua + tượng (cùng màu ô)
+        if len(pieces) == 4:
+            bishops = [p for p in pieces if p.name == "bishop"]
+            if len(bishops) == 2:
+                colors = []
+                for b in bishops:
+                    row, col = b.row, b.col
+                    colors.append((row + col) % 2)
+                if colors[0] == colors[1]:
+                    return True
+
+        return False
     def is_stalemate(self, color):
         """
         Kiểm tra có bị hòa không
         """
         if self._is_king_in_check(color):
             return False
-
+        if self.insufficient_material():
+            return True
         # Kiểm tra xem có nước đi hợp lệ nào không
         legal_moves = self.get_legal_moves(color)
         return len(legal_moves) == 0
