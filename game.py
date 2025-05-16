@@ -22,6 +22,7 @@ class Game:
         self.config = Config()
         self.ai_enabled = False  # Thêm biến để bật/tắt AI
         self.ai_color = 'black'  # AI sẽ chơi quân đen
+        self.ai_depth = 0
         self.game_over = False  # Thêm biến để kiểm tra kết thúc game
         self.ai_move_delay = 0.5  # Thời gian chờ trước khi AI đi (giây)
         self.valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
@@ -255,7 +256,7 @@ class Game:
             return
 
         # Lấy nước đi tốt nhất từ AI
-        best_move = find_best_move(self.board, self.ai_color)
+        best_move = find_best_move(self.board, self.ai_color, self.ai_depth)
         if best_move:
             # Tìm quân cờ ở vị trí initial
             piece = self.board.squares[best_move.initial.row][best_move.initial.col].piece

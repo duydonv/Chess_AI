@@ -32,17 +32,17 @@ class Main:
             if mode == "bot_easy":
                 self.game.ai_enabled = True
                 self.game.ai_color = 'black'
+                self.game.ai_depth = 2
             elif mode == "bot_medium":
                 self.game.ai_enabled = True
                 self.game.ai_color = 'black'
+                self.game.ai_depth = 3
             elif mode == "bot_hard":
                 self.game.ai_enabled = True
                 self.game.ai_color = 'black'
+                self.game.ai_depth = 4
             elif mode == "friend":
                 self.game.ai_enabled = False
-            elif mode == "start":
-                self.game.ai_enabled = True
-                self.game.ai_color = 'black'
             else:
                 pygame.quit()
                 sys.exit()
