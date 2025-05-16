@@ -211,23 +211,6 @@ class Game:
                 rect = (pos.col * SQSIZE, pos.row * SQSIZE, SQSIZE, SQSIZE)
                 pygame.draw.rect(surface, color, rect)
 
-    def next_turn(self):
-        if self.game_over:
-            return
-
-        self.next_player = 'white' if self.next_player == 'black' else 'black'
-        
-        # Kiểm tra chiếu sau khi người chơi đi
-        if self.next_player == self.ai_color:
-            if self.board.is_checkmate('white'):
-                self.game_over = True
-                print("Black wins! Checkmate!")
-            elif self.board.is_stalemate('white'):
-                self.game_over = True
-                print("Game over! Stalemate!")
-            else:
-                self.make_ai_move()
-
     def check_game_over(self):
         color = self.next_player  # Người sắp chơi tiếp
 
@@ -245,7 +228,6 @@ class Game:
             return message
 
         return None
-
 
 
     def make_ai_move(self):
@@ -275,26 +257,6 @@ class Game:
         else:
             self.config.move_sound.play()
 
-    def get_all_legal_moves(self, color):
-        legal_moves = []
-        for row in range(ROWS):
-            for col in range(COLS):
-                piece = self.board.squares[row][col].piece
-                if piece and piece.color == color:
-                    self.board.calc_moves(piece, row, col, checking_checks=False)
-                    for move in piece.moves:
-                        # Thử đi nước cờ
-                        initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
-                        final_piece = self.board.squares[move.final.row][move.final.col].piece
-                        self.board.squares[move.final.row][move.final.col].piece = initial_piece
-                        self.board.squares[move.initial.row][move.initial.col].piece = None
-                        still_in_check = self.board._is_king_in_check(color)
-                        self.board.squares[move.initial.row][move.initial.col].piece = initial_piece
-                        self.board.squares[move.final.row][move.final.col].piece = final_piece
-                        if not still_in_check:
-                            legal_moves.append((piece, move))
-        return legal_moves
-
     def move(self, piece, move):
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
@@ -321,13 +283,9 @@ class Game:
             self._handle_promotion(piece.color, move.final.col, move.final.row)
 
         # 8. Kiểm tra kết thúc game
-        next_color = 'white' if piece.color == 'black' else 'black'
-        if self.board.is_checkmate(next_color):
-            print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
-            self.game_over = True
-        elif self.board.is_stalemate(next_color):
-            print("Hoa! Khong con nuoc di hop le.")
-            self.game_over = True
+        result = self.check_game_over()
+        if result:
+            print(result)  # In thông báo nếu cần
 
         return True
 
