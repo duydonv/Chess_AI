@@ -57,12 +57,14 @@ class Main:
         # Lưu lại chế độ chơi hiện tại
         current_ai_enabled = self.game.ai_enabled
         current_ai_color = self.game.ai_color
+        current_ai_depth = self.game.ai_depth
         
         self.game = Game()
         self.game.screen = self.screen
         # Khôi phục chế độ chơi
         self.game.ai_enabled = current_ai_enabled
         self.game.ai_color = current_ai_color
+        self.game.ai_depth = current_ai_depth
         
         self.settings = Settings()
         self.game.settings = self.settings
@@ -96,6 +98,15 @@ class Main:
                     gameOver = self.ui.show_game_result(screen, result)
                     if gameOver:
                         self.reset_game()
+                        # Cập nhật lại các biến tham chiếu trong mainloop
+                        game = self.game
+                        board = game.board
+                        dragger = game.dragger
+                        # Vẽ lại màn hình với game mới
+                        game.show_bg(screen)
+                        game.show_pieces(screen)
+                        pygame.display.update()
+                        continue
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -141,14 +152,20 @@ class Main:
                         # Hiện menu mới
                         mode = self.ui.show_start_menu(self.screen)
                         # Cập nhật chế độ chơi mới
-                        if mode == "bot":
+                        if mode == "bot_easy":
                             self.game.ai_enabled = True
                             self.game.ai_color = 'black'
+                            self.game.ai_depth = 2
+                        elif mode == "bot_medium":
+                            self.game.ai_enabled = True
+                            self.game.ai_color = 'black'
+                            self.game.ai_depth = 3
+                        elif mode == "bot_hard":
+                            self.game.ai_enabled = True
+                            self.game.ai_color = 'black'
+                            self.game.ai_depth = 4
                         elif mode == "friend":
                             self.game.ai_enabled = False
-                        elif mode == "start":
-                            self.game.ai_enabled = True
-                            self.game.ai_color = 'black'
                         else:
                             pygame.quit()
                             sys.exit()
@@ -211,14 +228,16 @@ class Main:
                         move = Move(initial, final)
                         # Kiểm tra nước đi hợp lệ
                         if board.valid_move(dragger.piece, move):
-                            # Thực hiện nước đi
-                            game.move(dragger.piece, move)
-                             # Phát âm thanh nếu đang bật
+                            # Kiểm tra và phát âm thanh trước khi di chuyển
                             if self.settings.sound_enabled:
+                                # Kiểm tra xem ô đích có quân đối phương không
                                 if board.squares[released_row][released_col].has_enemy_piece(game.next_player):
                                     game.config.capture_sound.play()
                                 else:
                                     game.config.move_sound.play()
+                            
+                            # Thực hiện nước đi
+                            game.move(dragger.piece, move)
                             self.last_move_time = current_time
                             # Vẽ lại giao diện ngay lập tức
                             game.show_bg(screen)
@@ -239,6 +258,15 @@ class Main:
                                 gameOver = self.ui.show_game_result(screen, result)
                                 if gameOver:
                                     self.reset_game()
+                                    # Cập nhật lại các biến tham chiếu trong mainloop
+                                    game = self.game
+                                    board = game.board
+                                    dragger = game.dragger
+                                    # Vẽ lại màn hình với game mới
+                                    game.show_bg(screen)
+                                    game.show_pieces(screen)
+                                    pygame.display.update()
+                                    continue
         
                         dragger.undrag_piece()
                     drag_scroll = False
