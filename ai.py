@@ -1,3 +1,4 @@
+# import các thư viện cần thiết
 import math
 from square import Square
 from move import Move
@@ -178,6 +179,7 @@ def evaluate_board(board, color):
                 if (row, col) in center_squares:
                     center_bonus = 20 * opening_factor
 
+                # Bonus cho việc phát triển quân (mã, tượng)
                 develop_bonus = 0
                 if piece.name in ('knight', 'bishop'):
                     if (piece.color == 'white' and row > 0) or (piece.color == 'black' and row < 7):
@@ -197,6 +199,7 @@ def evaluate_board(board, color):
                         if piece.color == 'black' and row == 0:
                             king_safety_bonus = 20
 
+                # Tính toán điểm tổng cộng cho quân cờ hiện tại
                 if piece.color == color:
                     total += value + 0.3 * pos_score + center_bonus + develop_bonus + king_safety_bonus
                 else:

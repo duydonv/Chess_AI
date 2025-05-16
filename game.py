@@ -1,3 +1,4 @@
+# Import các thư viện cần thiết
 import pygame
 import pygame.gfxdraw
 import time
@@ -24,7 +25,9 @@ class Game:
         self.ai_color = 'black'  # AI sẽ chơi quân đen
         self.game_over = False  # Thêm biến để kiểm tra kết thúc game
         self.ai_move_delay = 0.5  # Thời gian chờ trước khi AI đi (giây)
+
         self.valid_moves_cache = {}  # Cache cho các nước đi hợp lệ
+
         self.last_move_time = 0  # Thời gian của nước đi cuối cùng
         self.move_cooldown = 0.1  # Thời gian chờ giữa các nước đi
         self.drawn_moves = set()
@@ -36,12 +39,14 @@ class Game:
         self.move_history = []  # Lưu lịch sử nước đi
         self.move_log_scroll = 0  # Vị trí scroll log
 
+    # Cập nhật ô cờ đang được hover
     def set_hover(self, row, col):
         """
         Cập nhật ô cờ đang được hover
         """
         self.hovered_sqr = (row, col)
 
+    #Vẽ nền bàn cơ, đánh dấu vị trí vua bị chiếuchiếu
     def show_bg(self, surface):
         king_pos = None
         if self.board._is_king_in_check(self.next_player):
@@ -79,6 +84,7 @@ class Game:
             y = ROWS * SQSIZE - 22
             surface.blit(label, (x, y))
 
+    # Hiển thị menu chọn quân cờ khi phong cấp
     def show_choose_promotion(self, surface):
         # Chỉ vẽ 4 ô chọn quân ở hàng cuối (hoặc đầu) của cột phong quân
         if self.promotion_col is False or self.promotion_color is False:
@@ -102,6 +108,7 @@ class Game:
             piece.texture_rect = img.get_rect(center=img_center)
             surface.blit(img, piece.texture_rect)
 
+    # Vẽ các quân cờ lên bàn cờcờ
     def show_pieces(self, surface): #Update
         for row in range(ROWS):
             for col in range(COLS):
@@ -160,6 +167,7 @@ class Game:
         self.precomputed_moves[cache_key] = moves
         return moves
 
+    # Vẽ các nước đi hợp lệ
     def show_moves(self, surface):
         if self.dragger.dragging:
             piece = self.dragger.piece
@@ -196,10 +204,11 @@ class Game:
                     pygame.gfxdraw.aacircle(surface, center_x, center_y, radius, light_gray)
                     self.drawn_moves.add((move.final.row, move.final.col))
 
-    # chinh
+    # Xóa các nước đi đã vẽ
     def reset_moves(self):
         self.drawn_moves.clear()
 
+    # Vẽ nước đi cuối cùng (đánh dấu lên bàn cờcờ)
     def show_last_move(self, surface):
         if self.board.last_move:
             initial = self.board.last_move.initial
@@ -210,23 +219,7 @@ class Game:
                 rect = (pos.col * SQSIZE, pos.row * SQSIZE, SQSIZE, SQSIZE)
                 pygame.draw.rect(surface, color, rect)
 
-    def next_turn(self):
-        if self.game_over:
-            return
-
-        self.next_player = 'white' if self.next_player == 'black' else 'black'
-        
-        # Kiểm tra chiếu sau khi người chơi đi
-        if self.next_player == self.ai_color:
-            if self.board.is_checkmate('white'):
-                self.game_over = True
-                print("Black wins! Checkmate!")
-            elif self.board.is_stalemate('white'):
-                self.game_over = True
-                print("Game over! Stalemate!")
-            else:
-                self.make_ai_move()
-
+    # Kiểm tra xem game có kết thúc hay không
     def check_game_over(self):
         color = self.next_player  # Người sắp chơi tiếp
 
@@ -240,7 +233,6 @@ class Game:
             return "Game over! Stalemate!"
 
         return None
-
 
 
     def make_ai_move(self):
@@ -270,26 +262,6 @@ class Game:
         else:
             self.config.move_sound.play()
 
-    def get_all_legal_moves(self, color):
-        legal_moves = []
-        for row in range(ROWS):
-            for col in range(COLS):
-                piece = self.board.squares[row][col].piece
-                if piece and piece.color == color:
-                    self.board.calc_moves(piece, row, col, checking_checks=False)
-                    for move in piece.moves:
-                        # Thử đi nước cờ
-                        initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
-                        final_piece = self.board.squares[move.final.row][move.final.col].piece
-                        self.board.squares[move.final.row][move.final.col].piece = initial_piece
-                        self.board.squares[move.initial.row][move.initial.col].piece = None
-                        still_in_check = self.board._is_king_in_check(color)
-                        self.board.squares[move.initial.row][move.initial.col].piece = initial_piece
-                        self.board.squares[move.final.row][move.final.col].piece = final_piece
-                        if not still_in_check:
-                            legal_moves.append((piece, move))
-        return legal_moves
-
     def move(self, piece, move):
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
@@ -314,15 +286,10 @@ class Game:
         # 7. Xử lý phong cấp nếu là tốt
         if isinstance(piece, Pawn) and (move.final.row == 0 or move.final.row == 7):
             self._handle_promotion(piece.color, move.final.col, move.final.row)
-
         # 8. Kiểm tra kết thúc game
-        next_color = 'white' if piece.color == 'black' else 'black'
-        if self.board.is_checkmate(next_color):
-            print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
-            self.game_over = True
-        elif self.board.is_stalemate(next_color):
-            print("Hoa! Khong con nuoc di hop le.")
-            self.game_over = True
+        result = self.check_game_over()
+        if result:
+            print(result)  # In thông báo nếu cần
 
         return True
 

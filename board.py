@@ -1,3 +1,4 @@
+# import các thư viện cần thiết
 import os
 import copy
 
@@ -7,6 +8,7 @@ from piece import *
 from move import Move
 from sound import Sound
 
+# Lớp MoveState để lưu trạng thái của nước đi (vị trí đầu, cuối, quân cờ, quân bị ăn, thông tin nhập thành, ...) để phục vụ cho hàm make_move, undo_move
 class MoveState:
     def __init__(self, initial, final, moved_piece, captured_piece, last_move, move_number, en_passant_state, moved_piece_moved, captured_piece_moved, castle_info=None):
         self.initial = initial
@@ -20,8 +22,9 @@ class MoveState:
         self.captured_piece_moved = captured_piece_moved
         self.castle_info = castle_info  # dict chứa thông tin nhập thành nếu có
 
+# Lớp Board để biểu diễn bàn cờ
 class Board:
-
+    # Khởi tạo bàn cờ và các cache và stack lưu trạng thái
     def __init__(self):
         # Sử dụng list lồng nhau để biểu diễn bàn cờ (tối ưu hơn numpy object array)
         self.squares = [[Square(row, col) for col in range(8)] for row in range(8)]
@@ -103,6 +106,7 @@ class Board:
         self._valid_moves_cache[cache_key] = not still_in_check
         return not still_in_check
     
+    # Hàm đánh dấu là tốt có thể bị bắt qua đườngđường
     def set_true_en_passant(self, piece):
         
         if not isinstance(piece, Pawn):
@@ -115,7 +119,7 @@ class Board:
         
         piece.en_passant = True
     
-
+    # Hàm tính toán các nước đi có thể của từng loại quân
     def calc_moves(self, piece, row, col, checking_checks=False ):
         piece.clear_moves()
         
@@ -339,7 +343,7 @@ class Board:
             self.squares[6][col] = Square(6, col, Pawn('white'))
 
     def get_board_state(self):
-        # Tạo một chuỗi đại diện cho trạng thái bàn cờ
+        # Tạo một chuỗi đại diện cho trạng thái bàn cờ, dùng cho cache
         state = []
         for row in range(8):
             for col in range(8):

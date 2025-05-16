@@ -1,3 +1,4 @@
+# Import các thư viện cần thiết
 import pygame
 import sys
 import time
@@ -12,12 +13,16 @@ from ui import UI
 class Main:
 
     def __init__(self):
+        # Khởi tạo pygame
         pygame.init()
+        # Tạo cửa sổ hiển thị với kích thước là WIDTH + 300 và HEIGHT, WIDTH  và HEIGHT được khai báo trong const.py
         self.screen = pygame.display.set_mode((WIDTH + 300, HEIGHT))
-        pygame.display.set_caption('Chess')
+        pygame.display.set_caption('N03_Chess')
+        # Khởi tạo gaem và gán screen cho game
         self.game = Game()
         self.game.screen = self.screen
         self.clock = pygame.time.Clock()
+        # Khai báo các biến điều khiển AI
         self.waiting_for_ai = False
         self.last_move_time = 0
         self.AI_DELAY = 0.5  # Delay 
@@ -66,6 +71,7 @@ class Main:
             current_time = time.time()
 
             # AI move
+            # Kiểm tra xem có đang chờ AI không, màu của người chơi tiếp theo bằng màu của ai và ai được đi hay không
             if (self.waiting_for_ai and 
                 game.next_player == game.ai_color and 
                 game.ai_enabled and 
