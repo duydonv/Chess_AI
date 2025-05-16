@@ -36,7 +36,7 @@ class Game:
         self._check_cache = {}  # Cache cho kiểm tra chiếu
         self.move_history = []  # Lưu lịch sử nước đi
         self.move_log_scroll = 0  # Vị trí scroll log
-
+        self.halfmove_clock = 0  # đếm số nửa nước không ăn quân và không đi tốt
     def set_hover(self, row, col):
         """
         Cập nhật ô cờ đang được hover
@@ -243,7 +243,11 @@ class Game:
             message = "Game over! Stalemate!"
             print(message)  # 👈 In ra console
             return message
-
+        elif self.halfmove_clock >= 100:
+            self.game_over = True
+            message = "Game over! Stalemate!"
+            print(message)
+            return message
         return None
 
 
@@ -328,7 +332,12 @@ class Game:
         elif self.board.is_stalemate(next_color):
             print("Hoa! Khong con nuoc di hop le.")
             self.game_over = True
-
+        # Nếu là tốt hoặc ăn quân => reset
+        if isinstance(piece, Pawn) or captured_piece is not None:
+            self.halfmove_clock = 0
+        else:
+            self.halfmove_clock += 1
+        print(self.halfmove_clock)
         return True
 
     def _add_move_to_history(self, piece, move, captured_piece):
@@ -473,3 +482,4 @@ class Game:
             else:
                 thumb_y = bar_y
             pygame.draw.rect(surface, (180, 180, 180), (bar_x, thumb_y, bar_width, thumb_height), border_radius=5)
+
