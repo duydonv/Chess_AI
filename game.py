@@ -211,23 +211,6 @@ class Game:
                 rect = (pos.col * SQSIZE, pos.row * SQSIZE, SQSIZE, SQSIZE)
                 pygame.draw.rect(surface, color, rect)
 
-    def next_turn(self):
-        if self.game_over:
-            return
-
-        self.next_player = 'white' if self.next_player == 'black' else 'black'
-        
-        # Kiểm tra chiếu sau khi người chơi đi
-        if self.next_player == self.ai_color:
-            if self.board.is_checkmate('white'):
-                self.game_over = True
-                print("Black wins! Checkmate!")
-            elif self.board.is_stalemate('white'):
-                self.game_over = True
-                print("Game over! Stalemate!")
-            else:
-                self.make_ai_move()
-
     def check_game_over(self):
         color = self.next_player  # Người sắp chơi tiếp
 
@@ -249,7 +232,6 @@ class Game:
             print(message)
             return message
         return None
-
 
 
     def make_ai_move(self):
@@ -278,26 +260,6 @@ class Game:
             self.config.capture_sound.play()
         else:
             self.config.move_sound.play()
-
-    def get_all_legal_moves(self, color):
-        legal_moves = []
-        for row in range(ROWS):
-            for col in range(COLS):
-                piece = self.board.squares[row][col].piece
-                if piece and piece.color == color:
-                    self.board.calc_moves(piece, row, col, checking_checks=False)
-                    for move in piece.moves:
-                        # Thử đi nước cờ
-                        initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
-                        final_piece = self.board.squares[move.final.row][move.final.col].piece
-                        self.board.squares[move.final.row][move.final.col].piece = initial_piece
-                        self.board.squares[move.initial.row][move.initial.col].piece = None
-                        still_in_check = self.board._is_king_in_check(color)
-                        self.board.squares[move.initial.row][move.initial.col].piece = initial_piece
-                        self.board.squares[move.final.row][move.final.col].piece = final_piece
-                        if not still_in_check:
-                            legal_moves.append((piece, move))
-        return legal_moves
 
     def move(self, piece, move):
         """
@@ -337,7 +299,6 @@ class Game:
             self.halfmove_clock = 0
         else:
             self.halfmove_clock += 1
-        print(self.halfmove_clock)
         return True
 
     def _add_move_to_history(self, piece, move, captured_piece):
