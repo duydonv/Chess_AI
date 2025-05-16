@@ -7,6 +7,7 @@ from game import Game
 from square import Square
 from move import Move
 from settings import Settings
+from ui import UI
 
 class Main:
 
@@ -20,9 +21,22 @@ class Main:
         self.waiting_for_ai = False
         self.last_move_time = 0
         self.AI_DELAY = 0.5  # Delay 
-        # Bat AI
-        self.game.ai_enabled = True
-        self.game.ai_color = 'black'
+        # Hiện menu
+        self.ui = UI()
+        mode = self.ui.show_start_menu(self.screen)
+
+        # Xử lý theo lựa chọn
+        if mode == "bot":
+            self.game.ai_enabled = True
+            self.game.ai_color = 'black'
+        elif mode == "friend":
+            self.game.ai_enabled = False
+        elif mode == "start":
+            self.game.ai_enabled = True
+            self.game.ai_color = 'black'
+        else:
+            pygame.quit()
+            sys.exit()
         # Thêm settings
         self.settings = Settings()
         self.game.settings = self.settings
@@ -39,61 +53,7 @@ class Main:
         self.last_move_time = 0
         self.should_restart = False
 
-    def show_start_menu(self):
-        # Tải ảnh nền nếu có
-        try:
-            background = pygame.image.load('assets/images/background.png')
-            background = pygame.transform.scale(background, (WIDTH + 300, HEIGHT))
-        except:
-            background = None  # Nếu không có ảnh thì dùng nền đen
-
-        button_font = pygame.font.SysFont("roboto", 40, bold=True)
-        play_button_font = pygame.font.SysFont("roboto", 30)
-
-        play_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 130, 300, 60)
-        playFriend_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 - 50, 300, 60)
-        playAi_button_rect = pygame.Rect(WIDTH - 80, HEIGHT//2 + 30, 300, 60)
-
-
-        while True:
-            if background:
-                self.screen.blit(background, (0, 0))
-            else:
-                self.screen.fill((0,0,0))
-
-
-            # Nút "Bắt đầu"
-            pygame.draw.rect(self.screen, (139, 174, 108), play_button_rect, border_radius=10)
-            text_surf = button_font.render("Start game", True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=play_button_rect.center)
-            self.screen.blit(text_surf, text_rect)
-
-           # pygame.display.flip()
-
-            # Nút ""
-            pygame.draw.rect(self.screen, (222, 184, 135), playFriend_button_rect, border_radius=10)
-            text_surf = play_button_font.render("Play with friend", True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=playFriend_button_rect.center)
-            self.screen.blit(text_surf, text_rect)
-
-            # Nút ""
-            pygame.draw.rect(self.screen, (222, 184, 135), playAi_button_rect, border_radius=10)
-            text_surf = play_button_font.render("Play with bot", True, (255, 255, 255))
-            text_rect = text_surf.get_rect(center=playAi_button_rect.center)
-            self.screen.blit(text_surf, text_rect)
-
-            pygame.display.flip()
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    sys.exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if play_button_rect.collidepoint(event.pos):
-                        return  # Bắt đầu game
-
     def mainloop(self):
-        self.show_start_menu()
         screen = self.screen
         game = self.game
         board = game.board
@@ -114,6 +74,10 @@ class Main:
                 self.waiting_for_ai = False
                 # Trả lượt lại cho người chơi
                 game.next_player = 'white'
+                result = game.check_game_over()
+                if result:
+                    self.show_game_result(screen, result)
+                    continue
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -171,7 +135,7 @@ class Main:
                         
                     # Chỉ xử lý nếu click trong bàn cờ
                     if event.pos[0] < WIDTH:
-                        if not dragger.dragging and game.next_player == 'white':
+                        if not dragger.dragging:
                             dragger.update_mouse(event.pos)
                             clicked_row = dragger.mouseY // SQSIZE
                             clicked_col = dragger.mouseX // SQSIZE
@@ -201,7 +165,7 @@ class Main:
                                 scroll_drag_offset = mouse_y - thumb_y
 
                 elif event.type == pygame.MOUSEBUTTONUP:
-                    if dragger.dragging and game.next_player == 'white':
+                    if dragger.dragging:
                         dragger.update_mouse(event.pos)
                         released_row = dragger.mouseY // SQSIZE
                         released_col = dragger.mouseX // SQSIZE
@@ -226,10 +190,18 @@ class Main:
                             game.show_pieces(screen)
                             pygame.display.update()
                             pygame.event.pump()
-                            # Chuyển lượt cho AI
-                            game.next_player = 'black'
-                            if game.next_player == game.ai_color and game.ai_enabled:
+                            # Chuyển lượt cho người chơi hoặc AI
+                            #-------------------
+                            if game.ai_enabled:
+                                game.next_player = game.ai_color
                                 self.waiting_for_ai = True
+                            else:
+                                game.next_player = 'black' if game.next_player == 'white' else 'white'
+                            #------------------
+                            result = game.check_game_over()
+                            if result:
+                                self.show_game_result(screen, result)
+                                continue
                         dragger.undrag_piece()
                     drag_scroll = False
 

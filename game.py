@@ -271,6 +271,22 @@ class Game:
             else:
                 self.make_ai_move()
 
+    def check_game_over(self):
+        color = self.next_player  # Người sắp chơi tiếp
+
+        if self.board.is_checkmate(color):
+            self.game_over = True
+            winner = 'Black' if color == 'white' else 'White'
+            return f"{winner} wins! Checkmate!"
+
+        elif self.board.is_stalemate(color):
+            self.game_over = True
+            return "Game over! Stalemate!"
+
+        return None
+
+
+
     def make_ai_move(self):
         """
         Thực hiện nước đi của AI
