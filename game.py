@@ -263,6 +263,9 @@ class Game:
                 self.next_player = 'white'
 
     def play_sound(self, captured=False):
+        # Giả sử self.settings là đối tượng Settings
+        if hasattr(self, 'settings') and not self.settings.sound_enabled:
+            return
         if captured:
             self.config.capture_sound.play()
         else:
@@ -380,6 +383,7 @@ class Game:
         self.show_pieces(self.screen)
         self.show_move_history(self.screen)
         self.show_choose_promotion(self.screen)
+        
         pygame.display.flip()
 
         waiting = True
@@ -406,8 +410,9 @@ class Game:
                             promotion_choices = [Queen, Rook, Bishop, Knight]
                             new_piece_class = promotion_choices[selected_index]
                             new_piece = new_piece_class(color)
-
                             self.board.squares[row][col].piece = new_piece
+                            self.promotion_col   = False
+                            self.promotion_color = False
                             waiting = False
 
     def clear_moves_cache(self):
@@ -422,7 +427,7 @@ class Game:
     def show_move_history(self, surface):
         # Vẽ nền đen cho vùng log
         pygame.draw.rect(surface, (20, 20, 20), (SQSIZE * 8, 0, 300, HEIGHT))
-        font = pygame.font.SysFont("Roboto", 26, bold=False)
+        font = pygame.font.SysFont("Roboto", 22, bold=False)
         x = SQSIZE * 8 + 20  # Bên phải bàn cờ
         y = 30
         max_lines = 18
