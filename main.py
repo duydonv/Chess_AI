@@ -41,12 +41,20 @@ class Main:
         self.settings = Settings()
         self.game.settings = self.settings
         self.should_restart = False
+        # Lưu chế độ chơi hiện tại
+        self.current_mode = mode
 
     def reset_game(self):
+        # Lưu lại chế độ chơi hiện tại
+        current_ai_enabled = self.game.ai_enabled
+        current_ai_color = self.game.ai_color
+        
         self.game = Game()
         self.game.screen = self.screen
-        self.game.ai_enabled = True
-        self.game.ai_color = 'black'
+        # Khôi phục chế độ chơi
+        self.game.ai_enabled = current_ai_enabled
+        self.game.ai_color = current_ai_color
+        
         self.settings = Settings()
         self.game.settings = self.settings
         self.waiting_for_ai = False
@@ -116,7 +124,25 @@ class Main:
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     result = self.settings.handle_click(event.pos)
                     if result == 'surrender_yes':
-                        self.show_start_menu()
+                        # Hiển thị kết quả surrender
+                        winner = 'black' if game.next_player == 'white' else 'white'
+                        result_text = f"{winner.capitalize()} Wins!"
+                        self.ui.show_game_result(screen, result_text)
+                        # Hiện menu mới
+                        mode = self.ui.show_start_menu(self.screen)
+                        # Cập nhật chế độ chơi mới
+                        if mode == "bot":
+                            self.game.ai_enabled = True
+                            self.game.ai_color = 'black'
+                        elif mode == "friend":
+                            self.game.ai_enabled = False
+                        elif mode == "start":
+                            self.game.ai_enabled = True
+                            self.game.ai_color = 'black'
+                        else:
+                            pygame.quit()
+                            sys.exit()
+                        self.current_mode = mode
                         self.reset_game()
                         # Cập nhật lại các biến tham chiếu trong mainloop
                         game = self.game
@@ -200,7 +226,7 @@ class Main:
                             #------------------
                             result = game.check_game_over()
                             if result:
-                                self.show_game_result(screen, result)
+                                self.ui.show_game_result(screen, result)
                                 continue
                         dragger.undrag_piece()
                     drag_scroll = False
