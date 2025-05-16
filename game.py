@@ -226,7 +226,7 @@ class Game:
             message = "Game over! Stalemate!"
             print(message)  # 👈 In ra console
             return message
-        elif self.halfmove_clock >= 100:
+        elif self.halfmove_clock >= 50:
             self.game_over = True
             message = "Game over! Stalemate!"
             print(message)

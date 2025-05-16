@@ -72,6 +72,18 @@ class Main:
         self.last_move_time = 0
         self.should_restart = False
 
+    def update_display(self):
+        self.game.show_bg(self.screen)
+        self.game.show_last_move(self.screen)
+        self.game.show_moves(self.screen)
+        self.game.show_pieces(self.screen)
+        self.game.show_move_history(self.screen)
+        self.settings.draw(self.screen)
+        if self.game.dragger.dragging and self.game.dragger.piece is not None:
+            self.game.dragger.update_blit(self.screen)
+        pygame.display.update()
+        pygame.event.pump()
+
     def mainloop(self):
         screen = self.screen
         game = self.game
@@ -93,6 +105,7 @@ class Main:
                 self.waiting_for_ai = False
                 # Trả lượt lại cho người chơi
                 game.next_player = 'white'
+                self.update_display()
                 result = game.check_game_over()
                 if result:
                     gameOver = self.ui.show_game_result(screen, result)
@@ -240,11 +253,7 @@ class Main:
                             game.move(dragger.piece, move)
                             self.last_move_time = current_time
                             # Vẽ lại giao diện ngay lập tức
-                            game.show_bg(screen)
-                            game.show_last_move(screen)
-                            game.show_pieces(screen)
-                            pygame.display.update()
-                            pygame.event.pump()
+                            self.update_display()
                             # Chuyển lượt cho người chơi hoặc AI
                             #-------------------
                             if game.ai_enabled:
@@ -286,15 +295,7 @@ class Main:
                             game.move_log_scroll = max_scroll
 
             # Hiển thị
-            game.show_bg(screen)
-            game.show_last_move(screen)
-            game.show_moves(screen)
-            game.show_pieces(screen)
-            game.show_move_history(screen)
-            self.settings.draw(screen)
-            if dragger.dragging and dragger.piece is not None:
-                dragger.update_blit(screen)
-            pygame.display.update()
+            self.update_display()
 
             if self.should_restart:
                 break
