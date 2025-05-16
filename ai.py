@@ -218,7 +218,7 @@ def generate_legal_moves(board, color):
             square = board.squares[row][col]
             if square.has_piece() and square.piece.color == color:
                 piece = square.piece
-                board.calc_moves(piece, row, col, bool=True)
+                board.calc_moves(piece, row, col, checking_checks=True)
                 for move in piece.moves:
                     # Thử đi nước cờ
                     board.make_move(piece, move)
