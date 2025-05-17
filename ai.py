@@ -248,11 +248,14 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
     current_color = color if maximizing_player else ('black' if color == 'white' else 'white')
     moves = generate_legal_moves(board, current_color)
     if not moves:
-        # Không còn nước đi, kiểm tra chiếu hết/hòa
+        # Kiểm tra trạng thái kết thúc
         if board._is_king_in_check(current_color):
-            return -math.inf if maximizing_player else math.inf
+            # Chiếu hết - trả về giá trị rất thấp/cao tùy theo người chơi
+            return -10000 if maximizing_player else 10000
         else:
-            return 0
+            # Hòa - trả về giá trị trung lập
+            return -100 if maximizing_player else 100
+    
     if maximizing_player:
         max_eval = -math.inf
         for piece, move in moves:
