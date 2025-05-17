@@ -316,26 +316,26 @@ class Board:
                 self.squares[row][col] = Square(row, col)
 
         # Đặt quân đen
-        self.squares[0][0] = Square(0, 0, Rook('black'))
-        self.squares[0][1] = Square(0, 1, Knight('black'))
-        self.squares[0][2] = Square(0, 2, Bishop('black'))
-        self.squares[0][3] = Square(0, 3, Queen('black'))
+        # self.squares[0][0] = Square(0, 0, Rook('black'))
+        # self.squares[0][1] = Square(0, 1, Knight('black'))
+        # self.squares[0][2] = Square(0, 2, Bishop('black'))
+        # self.squares[0][3] = Square(0, 3, Queen('black'))
         self.squares[0][4] = Square(0, 4, King('black'))
-        self.squares[0][5] = Square(0, 5, Bishop('black'))
-        self.squares[0][6] = Square(0, 6, Knight('black'))
-        self.squares[0][7] = Square(0, 7, Rook('black'))
+        # self.squares[0][5] = Square(0, 5, Bishop('black'))
+        # self.squares[0][6] = Square(0, 6, Knight('black'))
+        # self.squares[0][7] = Square(0, 7, Rook('black'))
         for col in range(8):
             self.squares[1][col] = Square(1, col, Pawn('black'))
 
         # Đặt quân trắng
-        self.squares[7][0] = Square(7, 0, Rook('white'))
-        self.squares[7][1] = Square(7, 1, Knight('white'))
-        self.squares[7][2] = Square(7, 2, Bishop('white'))
-        self.squares[7][3] = Square(7, 3, Queen('white'))
+        # self.squares[7][0] = Square(7, 0, Rook('white'))
+        # self.squares[7][1] = Square(7, 1, Knight('white'))
+        # self.squares[7][2] = Square(7, 2, Bishop('white'))
+        # self.squares[7][3] = Square(7, 3, Queen('white'))
         self.squares[7][4] = Square(7, 4, King('white'))
-        self.squares[7][5] = Square(7, 5, Bishop('white'))
-        self.squares[7][6] = Square(7, 6, Knight('white'))
-        self.squares[7][7] = Square(7, 7, Rook('white'))
+        # self.squares[7][5] = Square(7, 5, Bishop('white'))
+        # self.squares[7][6] = Square(7, 6, Knight('white'))
+        # self.squares[7][7] = Square(7, 7, Rook('white'))
         for col in range(8):
             self.squares[6][col] = Square(6, col, Pawn('white'))
 

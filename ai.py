@@ -110,6 +110,9 @@ PIECE_TABLES_ENDGAME = {
     'king': KING_TABLE_ENDGAME
 }
 
+# Trạng thái dừng khai cuộc
+stop_opening = False
+
 def get_opening_moves(move_number):
     """
     Trả về nước đi khai cuộc dựa trên số nước đã đi
@@ -122,13 +125,70 @@ def get_opening_moves(move_number):
     opening_moves = {
         1: {'initial': (1, 4), 'final': (3, 4)},  # e5
         2: {'initial': (0, 1), 'final': (2, 2)},  # Nc6
-        3: {'initial': (1, 1), 'final': (2, 1)},  # b6
-        4: {'initial': (0, 6), 'final': (2, 5)},  # Bb7
-        5: {'initial': (0, 5), 'final': (1, 4)},  # phát triển tịnh
-        6: {'initial': (0, 4), 'final': (0, 6)},  # O-O (nhập thành)
+        3: {'initial': (0, 6), 'final': (2, 5)},  # Bb7
+        4: {'initial': (0, 5), 'final': (1, 4)},  # phát triển tịnh
+        5: {'initial': (0, 4), 'final': (0, 6)},  # O-O (nhập thành)
+        6: {'initial': (1, 1), 'final': (2, 1)},  # b6
     }
     
     return opening_moves.get(ai_move_number)
+
+def evaluate_pawn_structure(board, color):
+    """
+    Đánh giá cấu trúc tốt
+    - Phạt tốt đôi (doubled pawns)
+    - Phạt tốt cô lập (isolated pawns)
+    - Thưởng tốt thông qua (passed pawns)
+    """
+    score = 0
+    for col in range(8):
+        # Đếm số tốt trên mỗi cột
+        pawns_in_col = 0
+        doubled_pawns = 0
+        isolated_pawns = 0
+        passed_pawns = 0
+        
+        for row in range(8):
+            piece = board.squares[row][col].piece
+            if piece and piece.name == 'pawn' and piece.color == color:
+                pawns_in_col += 1
+                
+                # Kiểm tra tốt cô lập
+                has_adjacent_pawns = False
+                for adj_col in [col-1, col+1]:
+                    if 0 <= adj_col < 8:
+                        for r in range(8):
+                            adj_piece = board.squares[r][adj_col].piece
+                            if adj_piece and adj_piece.name == 'pawn' and adj_piece.color == color:
+                                has_adjacent_pawns = True
+                                break
+                if not has_adjacent_pawns:
+                    isolated_pawns += 1
+                
+                # Kiểm tra tốt thông qua
+                is_passed = True
+                enemy_row_start = 0 if color == 'white' else row + 1
+                enemy_row_end = row if color == 'white' else 8
+                for r in range(enemy_row_start, enemy_row_end):
+                    for c in [col-1, col, col+1]:
+                        if 0 <= c < 8:
+                            enemy_piece = board.squares[r][c].piece
+                            if enemy_piece and enemy_piece.name == 'pawn' and enemy_piece.color != color:
+                                is_passed = False
+                                break
+                if is_passed:
+                    passed_pawns += 1
+        
+        # Phạt tốt đôi
+        if pawns_in_col > 1:
+            doubled_pawns += pawns_in_col - 1
+    
+    # Tính điểm
+    score -= doubled_pawns * 20  # Phạt tốt đôi
+    score -= isolated_pawns * 15  # Phạt tốt cô lập
+    score += passed_pawns * 30   # Thưởng tốt thông qua
+    
+    return score
 
 def evaluate_board(board, color):
     piece_values = {
@@ -209,6 +269,10 @@ def evaluate_board(board, color):
     if color == 'black' and black_castled:
         total += castle_bonus
 
+    # Thêm đánh giá cấu trúc tốt
+    pawn_structure_score = evaluate_pawn_structure(board, color)
+    total += pawn_structure_score
+
     return total
 
 def generate_legal_moves(board, color):
@@ -280,23 +344,49 @@ def minimax(board, depth, alpha, beta, maximizing_player, color):
         return min_eval
 
 def find_best_move(board, color, depth):
+    global stop_opening
     # Thêm logic khai cuộc
-    if color == 'black' and board.move_number < 12:  # 6 nước của AI = 12 nước của cả bàn cờ
-        opening_move = get_opening_moves(board.move_number + 1)
-        if opening_move:
-            # Tìm quân cờ ở vị trí initial
-            piece = board.squares[opening_move['initial'][0]][opening_move['initial'][1]].piece
-            if piece and piece.color == color:
-                # Tạo nước đi
-                initial = Square(opening_move['initial'][0], opening_move['initial'][1])
-                final = Square(opening_move['final'][0], opening_move['final'][1])
-                move = Move(initial, final)
-                # Kiểm tra nước đi hợp lệ
-                if board.valid_move(piece, move):
-                    print(f'AI di khai cuoc: {piece.name} tu {opening_move["initial"]} den {opening_move["final"]}')
-                    return move
-                else:
-                     print('Nuoc khai cuoc khong hop le, chuyen sang minimax')
+    if color == 'black' and board.move_number < 12 and not stop_opening: 
+        # Dictionary lưu trữ các nước đi khai cuộc đã thực hiện
+        opening_moves_history = {
+            1: {'initial': (1, 4), 'final': (3, 4), 'piece': 'pawn'},     # e5
+            2: {'initial': (0, 1), 'final': (2, 2), 'piece': 'knight'},   # Nc6
+            3: {'initial': (0, 6), 'final': (2, 5), 'piece': 'knight'},   # Bb7
+            4: {'initial': (0, 5), 'final': (1, 4), 'piece': 'bishop'},   # phát triển tượng
+            5: {'initial': (0, 4), 'final': (0, 6), 'piece': 'king'},     # O-O
+            6: {'initial': (1, 1), 'final': (2, 1), 'piece': 'pawn'}      # b6
+        }
+        
+        # Kiểm tra các nước đi khai cuộc đã thực hiện
+        current_move = (board.move_number+1) // 2  # Số nước đi của AI
+        for move_num in range(1, current_move):
+            if move_num in opening_moves_history:
+                move_info = opening_moves_history[move_num]
+                # Kiểm tra xem quân cờ có còn ở vị trí đích không
+                piece = board.squares[move_info['final'][0]][move_info['final'][1]].piece
+                if not piece or piece.name != move_info['piece'] or piece.color != color:
+                    print(f'Quan {move_info["piece"]} da bi an hoac khong con o vi tri {move_info["final"]}, chuyen sang minimax')
+                    stop_opening = True  # Đánh dấu dừng khai cuộc
+                    break
+        else:  # Nếu tất cả quân đều còn ở vị trí đúng
+            # Lấy nước đi khai cuộc tiếp theo
+            opening_move = get_opening_moves(board.move_number + 1)
+            if opening_move:
+                # Tìm quân cờ ở vị trí initial
+                piece = board.squares[opening_move['initial'][0]][opening_move['initial'][1]].piece
+                if piece and piece.color == color:
+                    # Tạo nước đi
+                    initial = Square(opening_move['initial'][0], opening_move['initial'][1])
+                    final = Square(opening_move['final'][0], opening_move['final'][1])
+                    move = Move(initial, final)
+                    # Kiểm tra nước đi hợp lệ
+                    if board.valid_move(piece, move):
+                        print(f'AI di khai cuoc: {piece.name} tu {opening_move["initial"]} den {opening_move["final"]}')
+                        return move
+                    else:
+                        print('Nuoc khai cuoc khong hop le, chuyen sang minimax')
+                        stop_opening = True  # Đánh dấu dừng khai cuộc
+    
     # Nếu không có nước khai cuộc hoặc đã hết khai cuộc, sử dụng minimax
     best_move = None
     best_eval = -math.inf
