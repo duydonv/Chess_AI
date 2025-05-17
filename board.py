@@ -237,8 +237,10 @@ class Board:
         # Kiểm tra điều kiện nhập thành gần hoặc xa
         if king.color == 'white':
             back_row = 7
+            # check_squares = [Square(7,2), Square(7,3), Square(7,4), Square(7,5), Square(7,6)]
         else:
             back_row = 0
+            # check_squares = [Square(0,2), Square(0,3), Square(0,4), Square(0,5), Square(0,6)]
         if king_side:
             rook_col = 7
             step = 1
@@ -267,6 +269,15 @@ class Board:
             self.squares[back_row][c].piece = orig_target
             if in_check:
                 return False
+        # Hoặc dùng hàm này thì bỏ comment check_squares
+        # for row in range(8):
+        #     for col in range(8):
+        #         piece = self.squares[row][col].piece
+        #         if piece and piece.color != king.color:
+        #             self.calc_moves(piece, row, col)
+        #             for m in piece.moves:
+        #                 if m.final in check_squares:
+        #                     return False
         return True
 
     def _is_king_in_check(self, color):
@@ -414,7 +425,7 @@ class Board:
         self.move_stack.append(state)
 
         # 5. Thực hiện nước đi
-        self.move(piece, move)
+        self.move(piece, move, False)
 
     def undo_move(self):
         """

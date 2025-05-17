@@ -135,6 +135,8 @@ class Game:
         valid_moves = []
         for move in moves:
             # Thử đi nước cờ
+            if isinstance(piece, King) and (abs(move.final.col - move.initial.col) >= 2):
+                continue
             initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
             final_piece = self.board.squares[move.final.row][move.final.col].piece
             self.board.squares[move.final.row][move.final.col].piece = initial_piece
@@ -320,7 +322,7 @@ class Game:
                             legal_moves.append((piece, move))
         return legal_moves
 
-    def move(self, piece, move):
+    def move(self, piece, move, sound=True):
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
         """
@@ -333,6 +335,10 @@ class Game:
 
         # 3. Thêm số thứ tự nước đi vào log
         self._add_move_to_history(piece, move, captured_piece)
+
+        # 5. Phát âm thanh
+        if sound:
+            self.play_sound(captured_piece is not None)
 
         # 4. Xóa cache
         self.clear_moves_cache()

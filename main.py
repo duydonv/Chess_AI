@@ -241,16 +241,8 @@ class Main:
                         move = Move(initial, final)
                         # Kiểm tra nước đi hợp lệ
                         if board.valid_move(dragger.piece, move):
-                            # Kiểm tra và phát âm thanh trước khi di chuyển
-                            if self.settings.sound_enabled:
-                                # Kiểm tra xem ô đích có quân đối phương không
-                                if board.squares[released_row][released_col].has_enemy_piece(game.next_player):
-                                    game.config.capture_sound.play()
-                                else:
-                                    game.config.move_sound.play()
-                            
                             # Thực hiện nước đi
-                            game.move(dragger.piece, move)
+                            game.move(dragger.piece, move, self.settings.sound_enabled)
                             self.last_move_time = current_time
                             # Vẽ lại giao diện ngay lập tức
                             self.update_display()
