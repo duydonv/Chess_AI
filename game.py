@@ -324,28 +324,25 @@ class Game:
         """
         Thực hiện nước đi và kiểm tra các điều kiện sau khi đi
         """
-        # 2. Lưu trạng thái trước khi đi
+        # 1. Lưu trạng thái trước khi đi
         captured_piece = self.board.squares[move.final.row][move.final.col].piece
         
-        # 3. Thực hiện nước đi
+        # 2. Thực hiện nước đi
         self.board.make_move(piece, move)
         self.board.set_true_en_passant(piece)
 
-        # 4. Thêm số thứ tự nước đi vào log
+        # 3. Thêm số thứ tự nước đi vào log
         self._add_move_to_history(piece, move, captured_piece)
 
-        # 5. Phát âm thanh
-        self.play_sound(captured_piece is not None)
-
-        # 6. Xóa cache
+        # 4. Xóa cache
         self.clear_moves_cache()
         self.precomputed_moves.clear()
 
-        # 7. Xử lý phong cấp nếu là tốt
+        # 5. Xử lý phong cấp nếu là tốt
         if isinstance(piece, Pawn) and (move.final.row == 0 or move.final.row == 7):
             self._handle_promotion(piece.color, move.final.col, move.final.row)
 
-        # 8. Kiểm tra kết thúc game
+        # 6. Kiểm tra kết thúc game
         next_color = 'white' if piece.color == 'black' else 'black'
         if self.board.is_checkmate(next_color):
             print(f"{piece.color.capitalize()} thang! {next_color.capitalize()} bi chieu het!")
