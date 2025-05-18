@@ -136,6 +136,7 @@ class Game:
         for move in moves:
             # Thử đi nước cờ
             if isinstance(piece, King) and (abs(move.final.col - move.initial.col) >= 2):
+                valid_moves.append(move)
                 continue
             initial_piece = self.board.squares[move.initial.row][move.initial.col].piece
             final_piece = self.board.squares[move.final.row][move.final.col].piece
