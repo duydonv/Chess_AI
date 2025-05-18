@@ -247,7 +247,7 @@ class Game:
             message = "Game over! Stalemate!"
             print(message)  # 👈 In ra console
             return message
-        elif self.halfmove_clock >= 100:
+        elif self.halfmove_clock >= 50:
             self.game_over = True
             message = "Game over! Stalemate!"
             print(message)
@@ -291,6 +291,9 @@ class Game:
             if piece:
                 # Thực hiện nước đi
                 self.move(piece, best_move)
+                # Kiểm tra và xử lý phong cấp nếu là tốt
+                if isinstance(piece, Pawn) and (best_move.final.row == 0 or best_move.final.row == 7):
+                    self._handle_promotion(self.ai_color, best_move.final.col, best_move.final.row)
                 # Chuyển lượt cho người chơi
                 self.next_player = 'white'
 
@@ -411,6 +414,14 @@ class Game:
         self.move_log_scroll = max_scroll
 
     def _handle_promotion(self, color, col, row):
+
+        # Nếu là AI, tự động phong hậu
+        if color == self.ai_color:
+            new_piece = Queen(color)
+            self.board.squares[row][col].piece = new_piece
+            self.promotion_col = False
+            self.promotion_color = False
+            return
         """
         Xử lý phong cấp tốt
         """

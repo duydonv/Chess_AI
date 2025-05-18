@@ -414,7 +414,12 @@ class Board:
         self.move_stack.append(state)
 
         # 5. Thực hiện nước đi
-        self.move(piece, move, False)
+        # Nếu là nước đi phong tốt, thay tốt bằng hậu
+        if isinstance(piece, Pawn) and (final.row == 0 or final.row == 7):
+            self.squares[initial.row][initial.col].piece = None
+            self.squares[final.row][final.col].piece = Queen(piece.color)
+        else:
+            self.move(piece, move, False)
 
     def undo_move(self):
         """
