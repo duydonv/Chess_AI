@@ -315,29 +315,49 @@ class Board:
             for col in range(8):
                 self.squares[row][col] = Square(row, col)
 
-        # Đặt quân đen
-        self.squares[0][0] = Square(0, 0, Rook('black'))
-        self.squares[0][1] = Square(0, 1, Knight('black'))
-        self.squares[0][2] = Square(0, 2, Bishop('black'))
-        self.squares[0][3] = Square(0, 3, Queen('black'))
-        self.squares[0][4] = Square(0, 4, King('black'))
-        self.squares[0][5] = Square(0, 5, Bishop('black'))
-        self.squares[0][6] = Square(0, 6, Knight('black'))
-        self.squares[0][7] = Square(0, 7, Rook('black'))
-        for col in range(8):
-            self.squares[1][col] = Square(1, col, Pawn('black'))
+        # # Đặt quân đen
+        # self.squares[0][0] = Square(0, 0, Rook('black'))
+        # self.squares[0][1] = Square(0, 1, Knight('black'))
+        # self.squares[0][2] = Square(0, 2, Bishop('black'))
+        # self.squares[0][3] = Square(0, 3, Queen('black'))
+        # self.squares[0][4] = Square(0, 4, King('black'))
+        # self.squares[0][5] = Square(0, 5, Bishop('black'))
+        # self.squares[0][6] = Square(0, 6, Knight('black'))
+        # self.squares[0][7] = Square(0, 7, Rook('black'))
+        # for col in range(8):
+        #     self.squares[1][col] = Square(1, col, Pawn('black'))
 
-        # Đặt quân trắng
-        self.squares[7][0] = Square(7, 0, Rook('white'))
-        self.squares[7][1] = Square(7, 1, Knight('white'))
-        self.squares[7][2] = Square(7, 2, Bishop('white'))
-        self.squares[7][3] = Square(7, 3, Queen('white'))
-        self.squares[7][4] = Square(7, 4, King('white'))
-        self.squares[7][5] = Square(7, 5, Bishop('white'))
-        self.squares[7][6] = Square(7, 6, Knight('white'))
-        self.squares[7][7] = Square(7, 7, Rook('white'))
-        for col in range(8):
-            self.squares[6][col] = Square(6, col, Pawn('white'))
+        # # Đặt quân trắng
+        # self.squares[7][0] = Square(7, 0, Rook('white'))
+        # self.squares[7][1] = Square(7, 1, Knight('white'))
+        # self.squares[7][2] = Square(7, 2, Bishop('white'))
+        # self.squares[7][3] = Square(7, 3, Queen('white'))
+        # self.squares[7][4] = Square(7, 4, King('white'))
+        # self.squares[7][5] = Square(7, 5, Bishop('white'))
+        # self.squares[7][6] = Square(7, 6, Knight('white'))
+        # self.squares[7][7] = Square(7, 7, Rook('white'))
+        # for col in range(8):
+        #     self.squares[6][col] = Square(6, col, Pawn('white'))
+
+        # Hàng 0 (row 0): vua đen ở cột 5
+        self.squares[0][5] = Square(0, 5, King('black'))
+
+        # Hàng 2 (row 2): tốt đen ở cột 1
+        self.squares[2][1] = Square(2, 1, Pawn('black'))
+
+        # Hàng 3 (row 3): tốt đen ở cột 0, mã đen ở cột 3, tốt trắng ở cột 6
+        self.squares[3][0] = Square(3, 0, Pawn('black'))
+        self.squares[3][3] = Square(3, 3, Knight('black'))
+        self.squares[3][6] = Square(3, 6, Pawn('white'))
+
+        # Hàng 4 (row 4): tốt trắng ở cột 5
+        self.squares[4][5] = Square(4, 5, Pawn('white'))
+
+        # Hàng 6 (row 6): tốt trắng ở cột 7
+        self.squares[6][7] = Square(6, 7, Pawn('white'))
+
+        # Hàng 7 (row 7): vua trắng ở cột 6
+        self.squares[7][6] = Square(7, 6, King('white'))
 
     def get_board_state(self):
         # Tạo một chuỗi đại diện cho trạng thái bàn cờ
@@ -404,16 +424,28 @@ class Board:
                 'king_moved': king_moved
             }
 
-        # 4. Tạo và lưu trạng thái
+        # 4. Lưu thông tin en passant capture nếu có
+        en_passant_capture = None
+        if isinstance(piece, Pawn):
+            diff = final.col - initial.col
+            if diff != 0 and self.squares[final.row][final.col].isempty():
+                # Bắt tốt qua đường
+                captured_pawn_row = initial.row
+                captured_pawn_col = final.col
+                captured_pawn = self.squares[captured_pawn_row][captured_pawn_col].piece
+                en_passant_capture = (captured_pawn_row, captured_pawn_col, captured_pawn)
+
+        # 5. Tạo và lưu trạng thái
         state = MoveState(
             initial, final, moved_piece, captured_piece,
             last_move, move_number, en_passant_state,
             moved_piece_moved, captured_piece_moved,
             castle_info
         )
+        state.en_passant_capture = en_passant_capture
         self.move_stack.append(state)
 
-        # 5. Thực hiện nước đi
+        # 6. Thực hiện nước đi
         # Nếu là nước đi phong tốt, thay tốt bằng hậu
         if isinstance(piece, Pawn) and (final.row == 0 or final.row == 7):
             self.squares[initial.row][initial.col].piece = None
@@ -453,6 +485,10 @@ class Board:
             state.moved_piece.moved = state.moved_piece_moved
             if state.captured_piece:
                 state.captured_piece.moved = state.captured_piece_moved
+            # Khôi phục quân tốt bị bắt qua đường nếu có
+            if hasattr(state, 'en_passant_capture') and state.en_passant_capture:
+                row, col, pawn = state.en_passant_capture
+                self.squares[row][col].piece = pawn
 
         # 4. Khôi phục trạng thái en passant
         for (row, col), en_passant in state.en_passant_state.items():
