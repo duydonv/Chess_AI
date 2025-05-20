@@ -262,7 +262,7 @@ class Game:
         """
         if self.game_over:
             return
-        ## Đánh giá performance tốc độ ra nước cờ của AI. Bật nếu cần thu thập datadata
+        # Đánh giá performance tốc độ ra nước cờ của AI. Bật nếu cần thu thập datadata
         # self.ai_move_count += 1
         # start_time = time.time()
         # best_move = find_best_move(self.board, self.ai_color, self.ai_depth)
